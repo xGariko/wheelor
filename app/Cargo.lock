@@ -4778,10 +4778,11 @@ dependencies = [
 
 [[package]]
 name = "wheelor"
-version = "0.1.0-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "raw-window-handle",
  "serde",
+ "serde_json",
  "slint",
  "slint-build",
  "toml",

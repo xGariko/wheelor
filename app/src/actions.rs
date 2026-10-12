@@ -14,7 +14,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::{HSTRING, PCWSTR, PWSTR, w};
 
 use crate::config::{Action, Shell, WindowMode};
-use crate::keys;
+use crate::{keys, tr, trf};
 
 /// Informazioni sulla finestra in primo piano quando si è aperta la ruota.
 /// I comandi le ricevono come variabili d'ambiente WHEELOR_APP, WHEELOR_TITLE e WHEELOR_PROFILE.
@@ -85,7 +85,7 @@ fn run_command(
     context: &Context,
 ) -> Result<(), String> {
     if command.trim().is_empty() {
-        return Err("Il comando è vuoto".into());
+        return Err(tr!("Il comando è vuoto", "The command is empty").into());
     }
     let (program, args) = command_line(command, shell, window);
     let cwd = if cwd.trim().is_empty() { expand("%USERPROFILE%") } else { expand(cwd) };
@@ -107,7 +107,7 @@ fn run_command(
 
     if window != WindowMode::Hidden {
         process.creation_flags(CREATE_NEW_CONSOLE.0);
-        process.spawn().map_err(|e| format!("Impossibile avviare {program}: {e}"))?;
+        process.spawn().map_err(|e| trf!("Impossibile avviare {program}: {e}", "Can't start {program}: {e}"))?;
         return Ok(());
     }
 
@@ -118,14 +118,14 @@ fn run_command(
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output()
-        .map_err(|e| format!("Impossibile avviare {program}: {e}"))?;
+        .map_err(|e| trf!("Impossibile avviare {program}: {e}", "Can't start {program}: {e}"))?;
     if output.status.success() {
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let detail = stderr.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("nessun dettaglio");
+    let detail = stderr.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or(tr!("nessun dettaglio", "no details"));
     let code = output.status.code().unwrap_or(-1);
-    Err(format!("Uscito con codice {code}: {detail}"))
+    Err(trf!("Uscito con codice {code}: {detail}", "Exited with code {code}: {detail}"))
 }
 
 /// Programma e argomenti per eseguire `command` nella shell scelta.
@@ -159,7 +159,8 @@ fn shell_execute(verb: PCWSTR, file: &str, args: &str, dir: &str, show: SHOW_WIN
         nShow: show.0,
         ..Default::default()
     };
-    unsafe { ShellExecuteExW(&mut info) }.map_err(|e| format!("Impossibile aprire \"{file}\": {}", e.message()))
+    unsafe { ShellExecuteExW(&mut info) }
+        .map_err(|e| trf!("Impossibile aprire \"{file}\": {}", "Can't open \"{file}\": {}", e.message()))
 }
 
 /// Espande le %VARIABILI% d'ambiente e la ~ iniziale (cartella utente).

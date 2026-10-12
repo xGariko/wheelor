@@ -1,11 +1,17 @@
 //! Conversioni tra la configurazione e quello che mostra la finestra: le righe degli elenchi
 //! e i campi dell'editor delle azioni.
 
-use slint::SharedString;
+use slint::{ModelRc, SharedString, VecModel};
 
 use super::{ActionRow, PickItem, SettingsWindow, SlotRow, WheelRow};
 use crate::config::{Action, Config, Item, Shell, Slot, Wheel, WindowMode};
-use crate::icons;
+use crate::{icons, keys, tr, trf};
+
+/// I tasti di una combinazione ("Ctrl+Alt+W"), come vanno disegnati.
+pub fn caps_model(text: &str) -> ModelRc<SharedString> {
+    let caps: Vec<SharedString> = keys::caps(text).into_iter().map(SharedString::from).collect();
+    ModelRc::new(VecModel::from(caps))
+}
 
 /// Icona di una ruota; se non ne ha una, un'icona generica.
 pub fn wheel_glyph(wheel: &Wheel) -> SharedString {
@@ -44,13 +50,13 @@ pub fn wheel_item(config: &Config, wheel: &Wheel) -> PickItem {
 /// A cosa serve la ruota, in breve.
 fn wheel_role(config: &Config, wheel: &Wheel) -> String {
     if wheel.is_main() {
-        return "Ruota principale".into();
+        return tr!("Ruota principale", "Main wheel").into();
     }
     if !wheel.apps.is_empty() {
-        return format!("Profilo · {}", wheel.apps.join(", "));
+        return trf!("Profilo · {}", "Profile · {}", wheel.apps.join(", "));
     }
-    let parents = parents(config, wheel);
-    if parents.is_empty() { "Non usata".into() } else { format!("Sottomenu di {}", parents.join(", ")) }
+    let parents = parents(config, wheel).join(", ");
+    if parents.is_empty() { tr!("Non usata", "Not used").into() } else { trf!("Sottomenu di {parents}", "Submenu of {parents}") }
 }
 
 /// Nomi delle ruote che contengono `wheel` come sottomenu.
@@ -66,15 +72,25 @@ pub fn containing<'a>(config: &'a Config, slot: &Slot) -> Vec<&'a str> {
 /// Suggerimento sotto i campi della ruota: spiega quando si apre.
 pub fn wheel_hint(config: &Config, wheel: &Wheel) -> String {
     if wheel.is_main() {
-        return "Si apre con la scorciatoia, quando l'app in primo piano non ha un suo profilo.".into();
+        return tr!(
+            "Si apre con la scorciatoia, quando l'app in primo piano non ha un suo profilo.",
+            "Opens with the shortcut, when the app in the foreground has no profile of its own."
+        )
+        .into();
     }
-    let parents = parents(config, wheel);
+    let parents = parents(config, wheel).join(", ");
     match (wheel.apps.is_empty(), parents.is_empty()) {
-        (true, true) => "Questa ruota non si apre ancora: aggiungila come sottomenu di un'altra ruota \
-                         oppure scrivi qui sopra le app per cui deve aprirsi."
-            .into(),
-        (true, false) => format!("Si apre come sottomenu di: {}.", parents.join(", ")),
-        (false, _) => "Con una di queste app in primo piano, la scorciatoia apre questa ruota.".into(),
+        (true, true) => tr!(
+            "Questa ruota non si apre ancora: aggiungila come sottomenu di un'altra ruota oppure scrivi qui sotto le app per cui deve aprirsi.",
+            "This wheel doesn't open yet: add it as a submenu of another wheel, or write below the apps it should open for."
+        )
+        .into(),
+        (true, false) => trf!("Si apre come sottomenu di: {parents}.", "Opens as a submenu of: {parents}."),
+        (false, _) => tr!(
+            "Con una di queste app in primo piano, la scorciatoia apre questa ruota.",
+            "With one of these apps in the foreground, the shortcut opens this wheel."
+        )
+        .into(),
     }
 }
 
@@ -106,11 +122,11 @@ fn initial(label: &str) -> SharedString {
 
 /// Dove è usata un'azione, da mostrare sotto l'etichetta.
 pub fn usage(config: &Config, id: &str) -> String {
-    let names = containing(config, &Slot::Action(id.to_string()));
+    let names = containing(config, &Slot::Action(id.to_string())).join(", ");
     if names.is_empty() {
-        "Non è in nessuna ruota: aggiungila dalla pagina di una ruota.".into()
+        tr!("Non è in nessuna ruota: aggiungila dalla pagina di una ruota.", "Not in any wheel: add it from a wheel's page.").into()
     } else {
-        format!("Nelle ruote: {}", names.join(", "))
+        trf!("Nelle ruote: {names}", "In the wheels: {names}")
     }
 }
 
@@ -118,10 +134,10 @@ pub fn usage(config: &Config, id: &str) -> String {
 fn summary(action: &Action) -> String {
     let first_line = |text: &str| text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("").to_string();
     match action {
-        Action::Command { command, .. } => format!("Comando · {}", first_line(command)),
-        Action::Open { target, .. } => format!("Apri · {target}"),
-        Action::Keys { keys } => format!("Tasti · {keys}"),
-        Action::Text { text } => format!("Testo · {}", first_line(text)),
+        Action::Command { command, .. } => trf!("Comando · {}", "Command · {}", first_line(command)),
+        Action::Open { target, .. } => trf!("Apri · {target}", "Open · {target}"),
+        Action::Keys { keys } => trf!("Tasti · {keys}", "Keys · {keys}"),
+        Action::Text { text } => trf!("Testo · {}", "Text · {}", first_line(text)),
     }
 }
 
@@ -172,6 +188,7 @@ pub fn fill_editor(ui: &SettingsWindow, item: &Item) {
     ui.set_ed_admin(admin);
     ui.set_ed_target(target);
     ui.set_ed_args(args);
+    ui.set_ed_keys_caps(caps_model(&keys));
     ui.set_ed_keys(keys);
     ui.set_ed_text(text);
 }

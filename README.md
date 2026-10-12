@@ -2,7 +2,8 @@
 
 Azioni rapide su una ruota attorno al cursore, per Windows.
 
-- Sito: https://wheelor.app
+- Sito: https://wheelor.app (in italiano: https://wheelor.app/it/)
+- Informativa sulla privacy: https://wheelor.app/privacy.html
 - Ultima versione: https://wheelor.app/latest.json
 - Download: https://github.com/xGariko/wheelor/releases
 
@@ -12,9 +13,9 @@ wheelor/
 │   ├── src/  ui/  assets/  tools/
 │   ├── installer/        Inno Setup + build.ps1 → app/dist/
 │   └── DESIGN.md         architettura e decisioni dell'app
-├── web/                  landing page (HTML + CSS statici, nessuna dipendenza)
-│   ├── src/              modello della pagina con i segnaposto {{VERSION}}, {{SIZE}}, …
-│   └── build.ps1         riempie i segnaposto da latest.json → web/dist/
+├── web/                  sito (HTML + CSS statici, nessuna dipendenza), in inglese e in italiano
+│   ├── src/              modelli delle pagine (index, privacy), partials/ comuni, caratteri
+│   └── build.ps1         crea le pagine nelle due lingue e riempie i segnaposto → web/dist/
 └── .github/workflows/
     ├── release.yml       tag vX.Y.Z[-beta.N] → compila l'installer → GitHub Release → aggiorna il sito
     └── site.yml          crea il sito e lo pubblica su GitHub Pages
@@ -39,6 +40,8 @@ python -m http.server 4321 --directory web\dist                   # http://local
 
 In locale il pulsante scarica l'installer copiato in `web\dist`; online punta alla GitHub Release.
 
+Ogni pagina di `web\src` è un modello con i testi nelle due lingue, `{{en}}…{{/en}}{{it}}…{{/it}}`: `build.ps1` ne ricava la versione inglese nella radice e quella italiana in `it/` (la sintassi completa è in cima allo script). Il selettore EN/IT in alto porta alla stessa pagina nell'altra lingua e ricorda la scelta; alla prima visita, chi ha il browser in italiano finisce da solo sulla versione italiana.
+
 ## Dove stanno installer e dati di versione
 
 Non serve un database: i dati sono pochi, cambiano solo a ogni release e sono pubblici.
@@ -49,7 +52,7 @@ Non serve un database: i dati sono pochi, cambiano solo a ogni release e sono pu
 | Versione, data, peso, hash, link | `latest.json`, allegato a ogni release e copiato nel sito (`/latest.json`) |
 | Landing page | **GitHub Pages** su `wheelor.app`, ricreata da `site.yml` |
 
-La pagina è statica: versione e peso sono scritti nell'HTML al momento della pubblicazione, quindi si vede tutto anche senza JavaScript e nessuna richiesta parte dal browser verso altri servizi (a parte Google Fonts).
+La pagina è statica: versione e peso sono scritti nell'HTML al momento della pubblicazione, quindi si vede tutto anche senza JavaScript e nessuna richiesta parte dal browser verso altri servizi: anche i caratteri sono serviti dal sito (`web/src/fonts`), niente cookie né statistiche. Se cambia qualcosa (un servizio esterno, una connessione dell'app), va aggiornata anche `web/src/privacy.html`.
 
 `latest.json`:
 
@@ -66,7 +69,7 @@ La pagina è statica: versione e peso sono scritti nell'HTML al momento della pu
 }
 ```
 
-Lo stesso indirizzo (`https://wheelor.app/latest.json`) potrà servire all'app per controllare gli aggiornamenti.
+Lo stesso indirizzo (`https://wheelor.app/latest.json`) lo legge l'app per controllare gli aggiornamenti (vedi sotto).
 
 ## Pubblicazione
 
@@ -89,6 +92,34 @@ A ogni versione:
 `release.yml` controlla che tag e versione coincidano, compila e testa su Windows, crea la release e fa ripartire `site.yml`. Dopo qualche minuto il sito mostra la nuova versione. Un tag con trattino (`v0.2.0-beta.1`) crea una pre-release: finché non esiste una versione stabile il sito mostra quella, con l'etichetta **Beta**; dopo, il sito resta sull'ultima stabile.
 
 Le modifiche a `web/` sul ramo `main` ripubblicano il sito da sole, con i dati dell'ultima release.
+
+### Come arrivano gli aggiornamenti agli utenti
+
+Non serve fare altro che pubblicare la release: quando `site.yml` ha aggiornato `https://wheelor.app/latest.json`, ogni Wheelor installato (dalla prima versione dopo la 0.1.0-beta.1) lo legge entro 20 secondi dall'avvio e poi ogni 6 ore. Se la versione è più nuova:
+
+1. compare una notifica *"Wheelor X è disponibile — Clic qui per aggiornare"* e nel menu dell'icona la voce *Aggiorna a Wheelor X…*; nelle impostazioni, un riquadro con **Aggiorna**;
+2. **Aggiorna** scarica l'installer dalla GitHub Release, controlla lo SHA-256 scritto in `latest.json` e lo avvia in modalità silenziosa;
+3. l'installer chiude Wheelor, sostituisce l'exe e lo riavvia: una notifica conferma la nuova versione. Ruote, azioni e preferenze restano in `%APPDATA%\Wheelor`.
+
+Chi ha ancora la 0.1.0-beta.1 (senza controllo degli aggiornamenti) deve installare la nuova a mano una volta, dal sito: l'installer aggiorna sopra quella esistente.
+
+Le pre-release contano come aggiornamenti per chi ha una versione più vecchia (`0.2.0-beta.1` > `0.1.0`), ma solo finché il sito le mostra: dopo la prima versione stabile `latest.json` punta sempre all'ultima stabile. Il controllo si può disattivare in *Generale → Sistema → Cerca aggiornamenti*; non invia dati, è una semplice lettura di `latest.json`.
+
+## Microsoft Store
+
+Lo Store firma l'app gratis: chi la installa da lì non vede l'avviso "file non sicuro" del browser e riceve gli aggiornamenti dallo Store. È lo stesso exe, impacchettato in MSIX.
+
+Una volta sola:
+
+1. in [Partner Center](https://partner.microsoft.com/dashboard) prenota il nome *Wheelor*;
+2. in *Gestione prodotto → Identità del prodotto* copia `Package/Identity/Name`, `Package/Identity/Publisher` e `Package/Properties/PublisherDisplayName` in `app/installer/msix/identity.json` e fai commit.
+
+A ogni versione (dopo la release):
+
+1. scarica l'artefatto **Wheelor-msix** dall'esecuzione di `release.yml` (*Actions → Release → l'esecuzione → Artifacts*), oppure crealo in locale con `powershell -ExecutionPolicy Bypass -File app\installer\msix\build.ps1`;
+2. in Partner Center crea un nuovo invio, carica il `.msix` in *Pacchetti* e invia. La certificazione richiede da qualche ora a qualche giorno, poi lo Store aggiorna gli utenti da solo.
+
+Differenze rispetto all'installer: niente aggiornamenti dall'app (li fa lo Store), avvio con Windows gestito anche da *Impostazioni → App → Avvio*, impostazioni in una cartella privata dell'app (le apre il pulsante *Apri cartella*), Windows 10 2004 o successivo. Meglio non installare entrambe le versioni: ne gira comunque una sola alla volta.
 
 ## Licenza
 

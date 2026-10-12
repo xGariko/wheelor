@@ -16,6 +16,9 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 
+use crate::i18n::Language;
+use crate::{tr, trf};
+
 /// Elementi al massimo in una ruota.
 pub const MAX_SLOTS: usize = 8;
 /// Id della ruota principale: c'è sempre.
@@ -28,10 +31,26 @@ pub struct Config {
     /// Combinazione che apre la ruota, es. "Ctrl+Alt+W".
     #[serde(default = "default_hotkey")]
     pub hotkey: String,
+    /// Lingua dell'interfaccia; senza, quella di Windows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<Language>,
     /// Dimensione della ruota sullo schermo. Prima delle tabelle: in TOML i valori semplici
     /// vanno scritti prima di `[[action]]` e `[[wheel]]`.
     #[serde(default, skip_serializing_if = "is_default")]
     pub size: WheelSize,
+    /// Opacità della ruota in percentuale, da MIN_OPACITY a 100.
+    #[serde(default = "full_opacity", skip_serializing_if = "is_full_opacity")]
+    pub opacity: u8,
+    /// Colore principale di ruota e impostazioni.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub accent: Accent,
+    /// true: conta solo la direzione del mouse, anche fuori dalla ruota, e un clic ovunque
+    /// sceglie lo spicchio puntato. false: fuori dalla ruota non si punta nulla e un clic la chiude.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub aim_anywhere: bool,
+    /// Controlla da solo se c'è una nuova versione (su wheelor.app).
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub check_updates: bool,
     #[serde(rename = "action", default)]
     pub actions: Vec<Item>,
     #[serde(rename = "wheel", default)]
@@ -102,6 +121,73 @@ impl WheelSize {
     }
 }
 
+/// Opacità minima della ruota (%): più trasparente non si leggerebbe più.
+pub const MIN_OPACITY: u8 = 40;
+
+/// Colore principale. Tutti accesi come l'acqua del sito, con luminosità e saturazione percepite
+/// simili (calcolate nello spazio OKLCH), così stanno bene sul tema scuro e con il testo scuro sopra.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Accent {
+    #[default]
+    Aqua,
+    Blue,
+    Violet,
+    Pink,
+    Coral,
+    Amber,
+    Lime,
+    Mint,
+}
+
+/// Le tinte che derivano da un colore principale (esadecimali, come nei CSS).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Palette {
+    pub accent: u32,
+    /// Un po' più chiaro: pulsanti sotto il mouse, bordi accesi.
+    pub hover: u32,
+    /// Un po' più scuro: pulsanti premuti.
+    pub press: u32,
+    /// Testo e icone sopra il colore principale: quasi nero, della stessa tinta.
+    pub ink: u32,
+    /// Gradiente della stella del logo, dal centro al bordo.
+    pub star_light: u32,
+    pub star_dark: u32,
+}
+
+impl Accent {
+    /// Nell'ordine del cerchio dei colori, partendo dall'acqua del logo.
+    pub const ALL: [Accent; 8] =
+        [Accent::Aqua, Accent::Blue, Accent::Violet, Accent::Pink, Accent::Coral, Accent::Amber, Accent::Lime, Accent::Mint];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Accent::Aqua => tr!("Acqua", "Aqua"),
+            Accent::Blue => tr!("Blu", "Blue"),
+            Accent::Violet => tr!("Viola", "Violet"),
+            Accent::Pink => tr!("Rosa", "Pink"),
+            Accent::Coral => tr!("Corallo", "Coral"),
+            Accent::Amber => tr!("Ambra", "Amber"),
+            Accent::Lime => tr!("Lime", "Lime"),
+            Accent::Mint => tr!("Menta", "Mint"),
+        }
+    }
+
+    pub fn palette(self) -> Palette {
+        let p = |accent, hover, press, ink, star_light, star_dark| Palette { accent, hover, press, ink, star_light, star_dark };
+        match self {
+            Accent::Aqua => p(0x6FE0E6, 0x8FE9EE, 0x5CCBD1, 0x06191B, 0x83EAF0, 0x49C8CE),
+            Accent::Blue => p(0x65C1FE, 0x82CCFF, 0x53ADE8, 0x081722, 0x81CBFF, 0x42A9E9),
+            Accent::Violet => p(0xBB95FC, 0xC4A4FD, 0xA782E5, 0x181224, 0xC4A3FF, 0xA57AE7),
+            Accent::Pink => p(0xFF7DB5, 0xFF94BF, 0xE86BA1, 0x240D16, 0xFF93BF, 0xE9609D),
+            Accent::Coral => p(0xFF8E7C, 0xFFA192, 0xE87B6B, 0x230F0C, 0xFFA191, 0xE87261),
+            Accent::Amber => p(0xFCB739, 0xFFC76A, 0xE6A41F, 0x1F1302, 0xFFC667, 0xE29F00),
+            Accent::Lime => p(0xADE74E, 0xBEF176, 0x9AD239, 0x0F1902, 0xBAF266, 0x92CF08),
+            Accent::Mint => p(0x51EEAD, 0x7CF5BE, 0x3AD89A, 0x031B10, 0x6BF7BA, 0x03D593),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Shell {
@@ -168,8 +254,29 @@ impl From<Slot> for String {
     }
 }
 
+/// Nome della ruota principale quando la crea Wheelor.
+fn main_name() -> &'static str {
+    tr!("Principale", "Main")
+}
+
 fn default_hotkey() -> String {
     "Ctrl+Alt+W".into()
+}
+
+fn full_opacity() -> u8 {
+    100
+}
+
+fn is_full_opacity(value: &u8) -> bool {
+    *value == 100
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 fn is_false(value: &bool) -> bool {
@@ -221,20 +328,21 @@ fn app_matches(pattern: &str, path: &str) -> bool {
 }
 
 impl Default for Config {
+    /// La configurazione di esempio del primo avvio, con i nomi nella lingua attuale.
     fn default() -> Self {
         let item = |id: &str, label: &str, icon: &str, action| Item { id: id.into(), label: label.into(), icon: icon.into(), action };
         let open = |target: &str| Action::Open { target: target.into(), args: String::new() };
         let keys = |keys: &str| Action::Keys { keys: keys.into() };
         let actions = vec![
-            item("terminale", "Terminale", "E756", open("wt.exe")),
+            item("terminale", tr!("Terminale", "Terminal"), "E756", open("wt.exe")),
             item("browser", "Browser", "E774", open("https://www.google.com")),
-            item("esplora-file", "Esplora file", "E8B7", open("explorer.exe")),
+            item("esplora-file", tr!("Esplora file", "File Explorer"), "E8B7", open("explorer.exe")),
             item("screenshot", "Screenshot", "E722", keys("Win+Shift+S")),
-            item("copia", "Copia", "E8C8", keys("Ctrl+C")),
-            item("incolla", "Incolla", "E77F", keys("Ctrl+V")),
+            item("copia", tr!("Copia", "Copy"), "E8C8", keys("Ctrl+C")),
+            item("incolla", tr!("Incolla", "Paste"), "E77F", keys("Ctrl+V")),
             item(
                 "blocca-pc",
-                "Blocca PC",
+                tr!("Blocca PC", "Lock PC"),
                 "E72E",
                 Action::Command {
                     command: "rundll32.exe user32.dll,LockWorkStation".into(),
@@ -244,16 +352,16 @@ impl Default for Config {
                     admin: false,
                 },
             ),
-            item("play-pausa", "Play/Pausa", "E768", keys("MediaPlayPause")),
-            item("brano-successivo", "Successivo", "E893", keys("MediaNext")),
-            item("brano-precedente", "Precedente", "E892", keys("MediaPrev")),
+            item("play-pausa", tr!("Play/Pausa", "Play/Pause"), "E768", keys("MediaPlayPause")),
+            item("brano-successivo", tr!("Successivo", "Next"), "E893", keys("MediaNext")),
+            item("brano-precedente", tr!("Precedente", "Previous"), "E892", keys("MediaPrev")),
             item("volume-su", "Volume +", "E995", keys("VolumeUp")),
             item("volume-giu", "Volume −", "E993", keys("VolumeDown")),
-            item("muto", "Muto", "E74F", keys("VolumeMute")),
+            item("muto", tr!("Muto", "Mute"), "E74F", keys("VolumeMute")),
         ];
 
         let action = |id: &str| Slot::Action(id.into());
-        let mut main = Wheel::new(MAIN_WHEEL, "Principale");
+        let mut main = Wheel::new(MAIN_WHEEL, main_name());
         main.slots = ["terminale", "browser", "esplora-file", "screenshot", "copia", "incolla"].map(action).to_vec();
         main.slots.push(Slot::Wheel("media".into()));
         main.slots.push(action("blocca-pc"));
@@ -263,11 +371,26 @@ impl Default for Config {
         media.slots =
             ["play-pausa", "brano-successivo", "volume-su", "muto", "volume-giu", "brano-precedente"].map(action).to_vec();
 
-        Self { hotkey: default_hotkey(), size: WheelSize::default(), actions, wheels: vec![main, media] }
+        Self { actions, wheels: vec![main, media], ..Self::empty() }
     }
 }
 
 impl Config {
+    /// Preferenze predefinite, senza azioni né ruote.
+    fn empty() -> Self {
+        Self {
+            hotkey: default_hotkey(),
+            language: None,
+            size: WheelSize::default(),
+            opacity: full_opacity(),
+            accent: Accent::default(),
+            aim_anywhere: false,
+            check_updates: true,
+            actions: Vec::new(),
+            wheels: Vec::new(),
+        }
+    }
+
     pub fn action(&self, id: &str) -> Option<&Item> {
         self.actions.iter().find(|a| a.id == id)
     }
@@ -286,15 +409,16 @@ impl Config {
             .expect("la ruota principale c'è sempre (vedi `normalize`)")
     }
 
-    /// Garantisce che la ruota principale esista e sia la prima.
+    /// Garantisce che la ruota principale esista e sia la prima, e che l'opacità sia sensata.
     fn normalize(&mut self) {
+        self.opacity = self.opacity.clamp(MIN_OPACITY, 100);
         match self.wheels.iter().position(Wheel::is_main) {
             Some(0) => {}
             Some(index) => {
                 let main = self.wheels.remove(index);
                 self.wheels.insert(0, main);
             }
-            None => self.wheels.insert(0, Wheel::new(MAIN_WHEEL, "Principale")),
+            None => self.wheels.insert(0, Wheel::new(MAIN_WHEEL, main_name())),
         }
     }
 
@@ -303,35 +427,47 @@ impl Config {
         let mut ids = HashSet::new();
         for item in &self.actions {
             if item.id.trim().is_empty() {
-                return Err(format!("L'azione \"{}\" non ha un id", item.label));
+                return Err(trf!("L'azione \"{}\" non ha un id", "The action \"{}\" has no id", item.label));
             }
             // `insert` restituisce false se l'elemento c'era già.
             if !ids.insert(item.id.as_str()) {
-                return Err(format!("Ci sono due azioni con id \"{}\"", item.id));
+                return Err(trf!("Ci sono due azioni con id \"{}\"", "Two actions have the id \"{}\"", item.id));
             }
         }
 
         let mut wheel_ids = HashSet::new();
         for wheel in &self.wheels {
             if wheel.id.trim().is_empty() {
-                return Err(format!("La ruota \"{}\" non ha un id", wheel.name));
+                return Err(trf!("La ruota \"{}\" non ha un id", "The wheel \"{}\" has no id", wheel.name));
             }
             if !wheel_ids.insert(wheel.id.as_str()) {
-                return Err(format!("Ci sono due ruote con id \"{}\"", wheel.id));
+                return Err(trf!("Ci sono due ruote con id \"{}\"", "Two wheels have the id \"{}\"", wheel.id));
             }
         }
 
         for wheel in &self.wheels {
             if wheel.slots.len() > MAX_SLOTS {
-                return Err(format!("La ruota \"{}\" ha più di {MAX_SLOTS} elementi", wheel.name));
+                return Err(trf!(
+                    "La ruota \"{}\" ha più di {MAX_SLOTS} elementi",
+                    "The wheel \"{}\" has more than {MAX_SLOTS} items",
+                    wheel.name
+                ));
             }
             for slot in &wheel.slots {
                 match slot {
                     Slot::Action(id) if !ids.contains(id.as_str()) => {
-                        return Err(format!("La ruota \"{}\" usa l'azione \"{id}\", che non esiste", wheel.name));
+                        return Err(trf!(
+                            "La ruota \"{}\" usa l'azione \"{id}\", che non esiste",
+                            "The wheel \"{}\" uses the action \"{id}\", which doesn't exist",
+                            wheel.name
+                        ));
                     }
                     Slot::Wheel(id) if !wheel_ids.contains(id.as_str()) => {
-                        return Err(format!("La ruota \"{}\" usa la ruota \"{id}\", che non esiste", wheel.name));
+                        return Err(trf!(
+                            "La ruota \"{}\" usa la ruota \"{id}\", che non esiste",
+                            "The wheel \"{}\" uses the wheel \"{id}\", which doesn't exist",
+                            wheel.name
+                        ));
                     }
                     _ => {}
                 }
@@ -339,7 +475,11 @@ impl Config {
         }
 
         if let Some(wheel) = self.wheels.iter().find(|w| self.reaches(&w.id, &w.id)) {
-            return Err(format!("La ruota \"{}\" contiene sé stessa tramite i suoi sottomenu", wheel.name));
+            return Err(trf!(
+                "La ruota \"{}\" contiene sé stessa tramite i suoi sottomenu",
+                "The wheel \"{}\" contains itself through its submenus",
+                wheel.name
+            ));
         }
         Ok(())
     }
@@ -410,14 +550,16 @@ pub fn load() -> Result<Config, String> {
         save(&config)?;
         return Ok(config);
     }
-    let text = fs::read_to_string(&path).map_err(|e| format!("Impossibile leggere {}: {e}", path.display()))?;
-    let error = |e: toml::de::Error| format!("Errore in {}:\n{e}", path.display());
+    let text = fs::read_to_string(&path)
+        .map_err(|e| trf!("Impossibile leggere {}: {e}", "Can't read {}: {e}", path.display()))?;
+    let error = |e: toml::de::Error| trf!("Errore in {}:\n{e}", "Error in {}:\n{e}", path.display());
 
     let (config, migrated) = parse(&text).map_err(error)?;
-    config.check().map_err(|e| format!("Errore in {}:\n{e}", path.display()))?;
+    config.check().map_err(|e| trf!("Errore in {}:\n{e}", "Error in {}:\n{e}", path.display()))?;
     if migrated {
         let backup = path.with_file_name("config.v1.toml");
-        fs::copy(&path, &backup).map_err(|e| format!("Impossibile copiare {}: {e}", backup.display()))?;
+        fs::copy(&path, &backup)
+            .map_err(|e| trf!("Impossibile copiare {}: {e}", "Can't copy {}: {e}", backup.display()))?;
         save(&config)?;
     }
     Ok(config)
@@ -430,7 +572,7 @@ fn parse(text: &str) -> Result<(Config, bool), toml::de::Error> {
     if config.actions.is_empty() && config.wheels.is_empty() {
         let legacy: Legacy = toml::from_str(text)?;
         if !legacy.slices.is_empty() {
-            config = migrate(config.hotkey, legacy.slices);
+            config = migrate(config, legacy.slices);
             migrated = true;
         }
     }
@@ -454,15 +596,16 @@ struct LegacySlice {
 }
 
 /// Ogni vecchio spicchio diventa un'azione della libreria; i primi 8 formano la ruota principale.
-fn migrate(hotkey: String, slices: Vec<LegacySlice>) -> Config {
+/// Le preferenze (scorciatoia, …) restano quelle lette da `config`.
+fn migrate(config: Config, slices: Vec<LegacySlice>) -> Config {
     let mut actions: Vec<Item> = Vec::new();
     for slice in slices {
         let id = unique_id(&slice.label, |id| actions.iter().any(|a| a.id == id));
         actions.push(Item { id, label: slice.label, icon: slice.icon, action: slice.action });
     }
-    let mut main = Wheel::new(MAIN_WHEEL, "Principale");
+    let mut main = Wheel::new(MAIN_WHEEL, main_name());
     main.slots = actions.iter().take(MAX_SLOTS).map(|a| Slot::Action(a.id.clone())).collect();
-    Config { hotkey, size: WheelSize::default(), actions, wheels: vec![main] }
+    Config { actions, wheels: vec![main], ..config }
 }
 
 /// Salva in modo atomico: scrive un file temporaneo e poi lo sostituisce all'originale,
@@ -471,11 +614,11 @@ pub fn save(config: &Config) -> Result<(), String> {
     let path = path();
     let text = toml::to_string_pretty(config).map_err(|e| e.to_string())?;
     if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir).map_err(|e| format!("Impossibile creare {}: {e}", dir.display()))?;
+        fs::create_dir_all(dir).map_err(|e| trf!("Impossibile creare {}: {e}", "Can't create {}: {e}", dir.display()))?;
     }
     let temp = path.with_extension("toml.tmp");
-    fs::write(&temp, text).map_err(|e| format!("Impossibile scrivere {}: {e}", temp.display()))?;
-    fs::rename(&temp, &path).map_err(|e| format!("Impossibile salvare {}: {e}", path.display()))
+    fs::write(&temp, text).map_err(|e| trf!("Impossibile scrivere {}: {e}", "Can't write {}: {e}", temp.display()))?;
+    fs::rename(&temp, &path).map_err(|e| trf!("Impossibile salvare {}: {e}", "Can't save {}: {e}", path.display()))
 }
 
 #[cfg(test)]
@@ -491,6 +634,28 @@ mod tests {
         let text = toml::to_string_pretty(&config).unwrap();
         assert!(text.contains("size = \"large\""));
         assert_eq!(toml::from_str::<Config>(&text).unwrap(), config);
+    }
+
+    #[test]
+    fn preferences_survive_a_round_trip() {
+        // Predefinite: non compaiono nel file.
+        let text = toml::to_string_pretty(&Config::default()).unwrap();
+        for key in ["opacity", "accent", "aim_anywhere", "check_updates"] {
+            assert!(!text.contains(key), "{key} non dovrebbe essere nel file");
+        }
+        let config =
+            Config { opacity: 70, accent: Accent::Lime, aim_anywhere: true, check_updates: false, ..Config::default() };
+        let text = toml::to_string_pretty(&config).unwrap();
+        assert!(text.contains("opacity = 70\naccent = \"lime\"\naim_anywhere = true\ncheck_updates = false"));
+        assert_eq!(parse(&text).unwrap().0, config);
+    }
+
+    #[test]
+    fn opacity_is_kept_in_range() {
+        let (config, _) = parse("opacity = 5").unwrap();
+        assert_eq!(config.opacity, MIN_OPACITY);
+        let (config, _) = parse("opacity = 250").unwrap();
+        assert_eq!(config.opacity, 100);
     }
 
     #[test]

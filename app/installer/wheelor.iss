@@ -15,7 +15,9 @@
 #define AppPublisher "Wheelor"
 ; Identifica l'app per aggiornamenti e disinstallazione: non va mai cambiato.
 #define AppGuid "A65392FC-AA5F-46D3-85A3-EBDAAD9B033C"
+; Titolo della finestra delle impostazioni, in italiano e in inglese (vedi TITLES in src/settings.rs).
 #define SettingsTitle "Wheelor – Impostazioni"
+#define SettingsTitleEn "Wheelor – Settings"
 ; VersionInfoVersion accetta solo numeri: per 0.2.0-beta.1 usa 0.2.0.
 #if Pos("-", AppVersion) > 0
   #define NumericVersion Copy(AppVersion, 1, Pos("-", AppVersion) - 1)
@@ -184,22 +186,29 @@ begin
     RegWriteStringValue(HKCU, RunKey, '{#AppName}', '"' + ExpandConstant('{app}\{#AppExe}') + '" --background')
   else if IsOwnAutoStart() then
     RegDeleteValue(HKCU, RunKey, '{#AppName}');
-  { Aggiornamento silenzioso (es. winget): se Wheelor era attivo, lo riavviamo. }
+  { Aggiornamento silenzioso (dall'app stessa o da winget): se Wheelor era attivo, lo riavviamo;
+    --updated: una notifica dice che l'aggiornamento è andato a buon fine. }
   if WasRunning and WizardSilent() then
-    Exec(ExpandConstant('{app}\{#AppExe}'), '--background', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+    Exec(ExpandConstant('{app}\{#AppExe}'), '--background --updated', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
 end;
 
-function InitializeUninstall(): Boolean;
+{ Chiude la finestra delle impostazioni con questo titolo: se ha modifiche non salvate resta aperta
+  a chiedere conferma, quindi dopo qualche secondo la chiudiamo d'autorità. }
+procedure CloseSettings(Title: String);
 var
   ResultCode: Integer;
 begin
+  if CloseWindow(FindWindowByWindowName(Title), False, Title, 30)
+    and (FindWindowByWindowName(Title) <> 0) then
+    Exec('taskkill.exe', '/F /IM {#AppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function InitializeUninstall(): Boolean;
+begin
   Result := True;
   CloseWheelor();
-  { Finestra delle impostazioni: se ha modifiche non salvate resta aperta a chiedere conferma,
-    quindi dopo qualche secondo la chiudiamo d'autorità. }
-  if CloseWindow(FindWindowByWindowName('{#SettingsTitle}'), False, '{#SettingsTitle}', 30)
-    and (FindWindowByWindowName('{#SettingsTitle}') <> 0) then
-    Exec('taskkill.exe', '/F /IM {#AppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  CloseSettings('{#SettingsTitle}');
+  CloseSettings('{#SettingsTitleEn}');
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

@@ -8,6 +8,8 @@ use windows::Win32::System::SystemInformation::GetLocalTime;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::{HSTRING, w};
 
+use crate::trf;
+
 /// Da chiamare per prima cosa in `main`: vale per tutti i thread del processo.
 pub fn install() {
     std::panic::set_hook(Box::new(|info| {
@@ -24,10 +26,16 @@ pub fn install() {
         let path = crate::config::path().with_file_name("crash.log");
         let saved = OpenOptions::new().create(true).append(true).open(&path).and_then(|mut f| f.write_all(entry.as_bytes()));
         let detail = match saved {
-            Ok(()) => format!("I dettagli sono in {}", path.display()),
+            Ok(()) => {
+                let path = crate::package::visible_path(path);
+                trf!("I dettagli sono in {}", "Details are in {}", path.display())
+            }
             Err(_) => entry,
         };
-        let text = HSTRING::from(format!("Wheelor si è chiuso per un errore imprevisto.\n\n{detail}"));
+        let text = HSTRING::from(trf!(
+            "Wheelor si è chiuso per un errore imprevisto.\n\n{detail}",
+            "Wheelor closed because of an unexpected error.\n\n{detail}"
+        ));
         unsafe {
             MessageBoxW(None, &text, w!("Wheelor"), MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
         }

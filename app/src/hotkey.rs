@@ -5,7 +5,7 @@ use std::cell::{Cell, RefCell};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
-use crate::keys;
+use crate::{keys, trf};
 
 /// Identificativo della hotkey della ruota (in futuro potranno essercene altre).
 pub const ID_WHEEL: i32 = 1;
@@ -42,11 +42,25 @@ pub fn register(hwnd: HWND, text: &str) -> Result<(), String> {
         if !previous.is_empty() {
             let _ = register(hwnd, &previous);
         }
-        return Err(format!("{text} è già usata da un'altra app ({})", e.message()));
+        return Err(trf!("{text} è già usata da un'altra app ({})", "{text} is already used by another app ({})", e.message()));
     }
     CURRENT.set(text.to_string());
     KEY.set(combo.key);
     Ok(())
+}
+
+/// La combinazione è libera? La registra per un attimo, senza finestra, e la libera subito.
+/// Se è già presa (da un'altra app o da Windows) la registrazione fallisce.
+pub fn is_free(combo: &keys::Combo) -> bool {
+    const PROBE: i32 = 0xBFFF;
+    unsafe {
+        let modifiers = combo.hotkey_modifiers() | MOD_NOREPEAT;
+        let free = RegisterHotKey(None, PROBE, modifiers, combo.key.0 as u32).is_ok();
+        if free {
+            let _ = UnregisterHotKey(None, PROBE);
+        }
+        free
+    }
 }
 
 pub fn unregister(hwnd: HWND) {

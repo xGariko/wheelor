@@ -1,7 +1,10 @@
 // Eseguito da cargo prima di compilare.
 fn main() {
-    // Traduce l'interfaccia .slint in codice Rust.
-    let config = slint_build::CompilerConfiguration::new().with_style("fluent".into());
+    // Traduce l'interfaccia .slint in codice Rust. I testi sono in italiano; la traduzione inglese
+    // (translations/en/LC_MESSAGES/wheelor.po) viene incorporata nell'exe.
+    let config = slint_build::CompilerConfiguration::new()
+        .with_style("fluent".into())
+        .with_bundled_translations("translations");
     slint_build::compile_with_config("ui/settings.slint", config).expect("compilazione dell'interfaccia Slint");
 
     // Risorse dentro l'exe:

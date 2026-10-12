@@ -43,6 +43,25 @@ jobs:
       - name: Compila l'installer
         run: ./app/installer/build.ps1 -DownloadBase "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:GITHUB_REF_NAME"
 
+      # Il pacchetto per il Microsoft Store (non firmato: lo firma lo Store). Si scarica dagli
+      # artefatti di questa esecuzione e si carica in Partner Center. Saltato finché
+      # app/installer/msix/identity.json non contiene l'identità dell'app.
+      - name: Crea il pacchetto per lo Store
+        id: msix
+        run: |
+          if ((Get-Content -Raw app/installer/msix/identity.json) -match 'DA-COMPILARE') {
+            Write-Host '::notice::Pacchetto per lo Store saltato: compila app/installer/msix/identity.json'
+            exit 0
+          }
+          ./app/installer/msix/build.ps1 -SkipBuild
+          "built=true" >> $env:GITHUB_OUTPUT
+
+      - if: steps.msix.outputs.built == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: Wheelor-msix
+          path: app/dist/*.msix
+
       - name: Crea la release
         env:
           GH_TOKEN: ${{ github.token }}

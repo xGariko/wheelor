@@ -28,6 +28,7 @@ pub const WM_WHEEL_KEY_DOWN: u32 = WM_APP + 6;
 /// Tasto numerico 1-9: wparam = indice dello spicchio (0-8).
 pub const WM_WHEEL_PICK: u32 = WM_APP + 7;
 /// Backspace o clic con un tasto diverso dal sinistro: tornare alla ruota precedente.
+/// wparam = 1 se viene dal mouse (fuori dalla ruota può chiuderla, vedi `wheel`).
 pub const WM_WHEEL_BACK: u32 = WM_APP + 8;
 /// Spazio: scegliere lo spicchio puntato, come con il clic.
 pub const WM_WHEEL_CONFIRM: u32 = WM_APP + 9;
@@ -109,7 +110,7 @@ extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRES
                 return LRESULT(1);
             }
             WM_RBUTTONUP | WM_MBUTTONUP | WM_XBUTTONUP => {
-                post(WM_WHEEL_BACK, 0, 0);
+                post(WM_WHEEL_BACK, 1, 0);
                 return LRESULT(1);
             }
             _ => {}

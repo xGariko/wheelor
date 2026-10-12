@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifest del pacchetto MSIX per il Microsoft Store. Non usarlo direttamente: installer\msix\build.ps1
+  sostituisce i segnaposto {{…}} con la versione di Cargo.toml e l'identità di identity.json.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 uap10 rescap">
+
+  <Identity Name="{{NAME}}" Publisher="{{PUBLISHER}}" Version="{{VERSION}}" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Wheelor</DisplayName>
+    <PublisherDisplayName>{{PUBLISHER_DISPLAY_NAME}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <!-- Windows 10 2004 o successivo: serve per i parametri dello startup task (uap10). -->
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <!-- Inglese e italiano, come l'app; il primo è quello usato per tutte le altre lingue. -->
+  <Resources>
+    <Resource Language="en-US" />
+    <Resource Language="it-IT" />
+  </Resources>
+
+  <Applications>
+    <!-- Id "Wheelor": lo usa package.rs per avviare le impostazioni (APP_ID). -->
+    <Application Id="Wheelor" Executable="wheelor.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Wheelor"
+        Description="ms-resource:Description"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!-- Avvio con Windows, attivo da subito come nell'installer (TaskId: STARTUP_TASK in package.rs).
+             Si spegne dalle impostazioni di Wheelor o da Impostazioni > App > Avvio. -->
+        <uap5:Extension
+          Category="windows.startupTask"
+          Executable="wheelor.exe"
+          EntryPoint="Windows.FullTrustApplication"
+          uap10:Parameters="--background">
+          <uap5:StartupTask TaskId="WheelorStartup" Enabled="true" DisplayName="Wheelor" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- App desktop classica (Win32): scorciatoia globale, hook di mouse e tastiera, avvio di comandi. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

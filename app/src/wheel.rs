@@ -12,8 +12,8 @@ use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, KillTimer, SetTimer}
 
 use crate::actions::{self, Context};
 use crate::config::{Action, Config, Slot};
-use crate::overlay::{self, Entrance, Hub, SliceView};
-use crate::{icons, input, tray};
+use crate::overlay::{self, Entrance, Hub, SliceView, Style};
+use crate::{icons, input, tr, tray, trf};
 
 /// Id del timer che apre un sottomenu quando ci si ferma sopra tenendo premuta la hotkey.
 pub const TIMER_DWELL: usize = 1;
@@ -52,7 +52,12 @@ thread_local! {
 
 /// Imposta la configurazione da usare alla prossima apertura.
 pub fn set_config(config: Config) {
-    overlay::set_zoom(config.size.zoom());
+    overlay::set_style(Style {
+        zoom: config.size.zoom(),
+        opacity: f32::from(config.opacity) / 100.0,
+        palette: config.accent.palette(),
+        aim_anywhere: config.aim_anywhere,
+    });
     CONFIG.set(Some(config));
 }
 
@@ -67,9 +72,12 @@ pub fn open(hwnd: HWND) -> Result<(), String> {
         let wheel = config.as_ref()?.wheel_for_app(&context.app);
         Some((wheel.id.clone(), wheel.name.clone(), wheel.slots.is_empty()))
     });
-    let Some((id, name, empty)) = root else { return Err("Configurazione non caricata".into()) };
+    let Some((id, name, empty)) = root else { return Err(tr!("Configurazione non caricata", "Configuration not loaded").into()) };
     if empty {
-        return Err(format!("La ruota \"{name}\" è vuota: aggiungi qualche azione dalle impostazioni."));
+        return Err(trf!(
+            "La ruota \"{name}\" è vuota: aggiungi qualche azione dalle impostazioni.",
+            "The wheel \"{name}\" is empty: add some actions in the settings."
+        ));
     }
 
     context.profile = name;
@@ -110,8 +118,12 @@ pub fn on_input(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) {
         }
         input::WM_WHEEL_CLICK => match overlay::hovered() {
             Some(index) => choose(hwnd, index),
+            // Fuori dalla ruota (se non si punta da tutto lo schermo): chiude tutto.
+            None if overlay::outside() => close(),
             None => back(hwnd), // clic sul mozzo
         },
+        // Un clic fuori dalla ruota, con qualunque tasto del mouse, la chiude; Backspace torna indietro.
+        input::WM_WHEEL_BACK if wparam.0 == 1 && overlay::outside() => close(),
         input::WM_WHEEL_BACK => back(hwnd),
         // Spazio: come il clic, ma nel mozzo non fa nulla (niente "indietro" per sbaglio).
         input::WM_WHEEL_CONFIRM => {
@@ -169,7 +181,7 @@ fn back(hwnd: HWND) {
 fn refresh(hwnd: HWND, entrance: Entrance) {
     if let Err(e) = show_top(entrance) {
         close();
-        tray::notify(hwnd, "Impossibile aprire la ruota", &e);
+        tray::notify(hwnd, tr!("Impossibile aprire la ruota", "Can't open the wheel"), &e);
     }
 }
 
@@ -178,8 +190,9 @@ fn show_top(entrance: Entrance) -> Result<(), String> {
     let Some(id) = STACK.with_borrow(|stack| stack.last().cloned()) else { return Ok(()) };
 
     let (views, targets, hub) = CONFIG.with_borrow(|config| {
-        let config = config.as_ref().ok_or("Configurazione non caricata")?;
-        let wheel = config.wheel(&id).ok_or_else(|| format!("La ruota \"{id}\" non esiste"))?;
+        let config = config.as_ref().ok_or(tr!("Configurazione non caricata", "Configuration not loaded"))?;
+        let wheel =
+            config.wheel(&id).ok_or_else(|| trf!("La ruota \"{id}\" non esiste", "The wheel \"{id}\" doesn't exist"))?;
         let mut views = Vec::new();
         let mut targets = Vec::new();
         for slot in &wheel.slots {
@@ -242,6 +255,6 @@ fn execute(hwnd: HWND, label: String, action: Action) {
     // ne passiamo il valore numerico e lo ricostruiamo dall'altra parte.
     let target = hwnd.0 as usize;
     actions::run(action, CONTEXT.take(), move |error| {
-        tray::notify(HWND(target as *mut _), &format!("{label}: azione non riuscita"), &error);
+        tray::notify(HWND(target as *mut _), &trf!("{label}: azione non riuscita", "{label}: action failed"), &error);
     });
 }

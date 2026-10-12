@@ -26,6 +26,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::{BOOL, Error, HSTRING, PCWSTR, Result, w};
 use windows_numerics::{Matrix3x2, Vector2};
 
+use crate::config::{Accent, Palette};
 use crate::icons;
 
 const CLASS_NAME: PCWSTR = w!("WheelorOverlay");
@@ -49,9 +50,8 @@ const DISC: u32 = 0x0B191A;
 const LINE: u32 = 0xA5CECD; // linee e bordi, sempre con alpha bassa
 const SOFT: u32 = 0xB9D3D1;
 const HEADING: u32 = 0xEEF7F6;
-const ACCENT: u32 = 0x6FE0E6;
 const ON_BALL: u32 = 0x0E2A2C;
-const ON_ACCENT: u32 = 0x06191B;
+// Il colore di accento (spicchio puntato, bagliori, stella) è una preferenza: vedi `Palette`.
 
 // Tempi delle animazioni, in secondi.
 const OPEN_FADE: f32 = 0.11;
@@ -163,9 +163,19 @@ pub fn dismiss() {
     with_overlay(|o| o.dismiss());
 }
 
-/// Ingrandisce la ruota (1.0 = misura normale); vale dalla prossima `show`.
-pub fn set_zoom(zoom: f32) {
-    with_overlay(|o| o.zoom = zoom);
+/// Aspetto e comportamento scelti nelle impostazioni; valgono dalla prossima `show`.
+pub struct Style {
+    /// Ingrandimento (1.0 = misura normale).
+    pub zoom: f32,
+    /// Opacità dell'intera ruota, da 0 a 1.
+    pub opacity: f32,
+    pub palette: Palette,
+    /// Si punta anche fuori dalla ruota (conta solo la direzione).
+    pub aim_anywhere: bool,
+}
+
+pub fn set_style(style: Style) {
+    with_overlay(|o| o.set_style(style));
 }
 
 /// Imposta il contenuto della ruota; si vede alla prossima `show`.
@@ -184,6 +194,11 @@ pub fn hover_at(point: POINT) {
 /// Spicchio attualmente evidenziato, se c'è.
 pub fn hovered() -> Option<usize> {
     with_overlay(|o| o.hover)
+}
+
+/// Il cursore è fuori dalla ruota (solo se non si punta da tutto lo schermo).
+pub fn outside() -> bool {
+    with_overlay(|o| o.outside)
 }
 
 /// Esegue `f` sull'overlay. `expect` interrompe il programma se `init` non è stato chiamato:
@@ -206,9 +221,10 @@ struct Overlay {
     /// Presente solo mentre la ruota è visibile.
     frame: Option<Frame>,
     hover: Option<usize>,
+    /// Il cursore è oltre il bordo del disco e lì non si punta nulla.
+    outside: bool,
     motion: Motion,
-    /// Dimensione scelta nelle impostazioni (1.0 = normale).
-    zoom: f32,
+    style: Style,
     /// Il timer dei fotogrammi è attivo.
     ticking: bool,
     last_frame: Instant,
@@ -307,7 +323,8 @@ impl Overlay {
             })?;
             // Il ClearType non funziona su sfondo trasparente: antialiasing in scala di grigi.
             target.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
-            let paint = Paint::new(&factory, &target)?;
+            let style = Style { zoom: 1.0, opacity: 1.0, palette: Accent::default().palette(), aim_anywhere: false };
+            let paint = Paint::new(&factory, &target, &style.palette)?;
 
             // Su Windows 10 mancano i font di Windows 11: si ripiega su quelli equivalenti.
             let dwrite: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
@@ -338,19 +355,31 @@ impl Overlay {
                 hub: Hub::Logo,
                 frame: None,
                 hover: None,
+                outside: false,
                 motion: Motion::new(0, Entrance::Open, false),
-                zoom: 1.0,
+                style,
                 ticking: false,
                 last_frame: Instant::now(),
             })
         }
     }
 
+    fn set_style(&mut self, style: Style) {
+        // I gradienti hanno i colori fissi: con un altro accento vanno ricreati.
+        if style.palette != self.style.palette {
+            match Paint::new(&self.factory, &self.target, &style.palette) {
+                Ok(paint) => self.paint = paint,
+                Err(_) => return, // si resta con l'aspetto precedente
+            }
+        }
+        self.style = style;
+    }
+
     fn show(&mut self, cursor: POINT, entrance: Entrance) -> Result<()> {
         let (dpi, work) = monitor_at(cursor)?;
         // Ingrandire la ruota equivale a disegnarla come su uno schermo con più DPI:
         // tutto cresce insieme e resta nitido.
-        let dpi = dpi as f32 * self.zoom;
+        let dpi = dpi as f32 * self.style.zoom;
 
         // Dimensione in pixel reali; centrata sul cursore ma sempre dentro l'area di lavoro.
         let size = (WINDOW_SIZE * dpi / 96.0).round() as i32;
@@ -370,6 +399,7 @@ impl Overlay {
 
         self.frame = Some(frame);
         self.hover = None;
+        self.outside = false;
         self.motion = Motion::new(self.slices.len(), entrance, animations_enabled());
         self.present()?;
         unsafe {
@@ -387,6 +417,7 @@ impl Overlay {
         // Assegnando None, il vecchio Frame viene distrutto e la sua Surface liberata (Drop).
         self.frame = None;
         self.hover = None;
+        self.outside = false;
         self.motion.closing = None;
     }
 
@@ -413,9 +444,13 @@ impl Overlay {
 
         let dx = (point.x - frame.center.x) as f32 / frame.scale;
         let dy = (point.y - frame.center.y) as f32 / frame.scale;
-        // Nel mozzo non si seleziona nulla; fuori conta solo la direzione, anche oltre il bordo.
+        // Nel mozzo non si seleziona nulla; fuori conta solo la direzione. Oltre il bordo del disco
+        // si punta solo se è stato scelto nelle impostazioni.
         let n = self.slices.len();
-        let hover = if n == 0 || dx.hypot(dy) < DEAD_ZONE { None } else { Some(slice_at(dy.atan2(dx), n)) };
+        let distance = dx.hypot(dy);
+        self.outside = !self.style.aim_anywhere && distance > RADIUS;
+        let hover =
+            if n == 0 || distance < DEAD_ZONE || self.outside { None } else { Some(slice_at(dy.atan2(dx), n)) };
 
         if hover != self.hover {
             self.hover = hover;
@@ -476,6 +511,7 @@ impl Overlay {
         // La dissolvenza di apertura e chiusura non richiede di ridisegnare: è l'opacità
         // dell'intera finestra, applicata da Windows.
         let (_, alpha) = self.motion.disc();
+        let alpha = alpha * self.style.opacity;
         let blend = BLENDFUNCTION {
             BlendOp: AC_SRC_OVER as u8,
             BlendFlags: 0,
@@ -557,7 +593,7 @@ impl Overlay {
             sink.Close()?;
             // Bagliore: tratti larghi e trasparenti sotto quello pieno.
             for (width, strength) in [(11.0, 0.08), (6.5, 0.18), (3.0, 1.0)] {
-                self.paint.solid.SetColor(&rgba(ACCENT, strength * alpha));
+                self.paint.solid.SetColor(&rgba(self.style.palette.accent, strength * alpha));
                 self.target.DrawGeometry(&geometry, &self.paint.solid, width, &self.paint.round);
             }
         }
@@ -595,7 +631,7 @@ impl Overlay {
                 p.glow.SetOpacity(0.6 * heat * pose.alpha);
                 t.FillEllipse(&circle(at, r + 26.0), &p.glow);
                 // Anello tenue che si allarga attorno alla pallina accesa.
-                self.fill(at, r + 5.0 * heat, rgba(ACCENT, 0.16 * heat * pose.alpha));
+                self.fill(at, r + 5.0 * heat, rgba(self.style.palette.accent, 0.16 * heat * pose.alpha));
             }
 
             // La pallina chiara; quella accesa si colora d'accento con un riflesso bianco.
@@ -604,14 +640,14 @@ impl Overlay {
             p.ball.SetOpacity(pose.alpha);
             t.FillEllipse(&circle(at, r), &p.ball);
             if heat > 0.005 {
-                self.fill(at, r, rgba(ACCENT, heat * pose.alpha));
+                self.fill(at, r, rgba(self.style.palette.accent, heat * pose.alpha));
                 set_radial(&p.shine, light, 2.04 * r);
                 p.shine.SetOpacity(heat * pose.alpha);
                 t.FillEllipse(&circle(at, r), &p.shine);
             }
 
             // Icona, oppure l'iniziale dell'etichetta.
-            let ink = mix(rgba(ON_BALL, pose.alpha), rgba(ON_ACCENT, pose.alpha), heat);
+            let ink = mix(rgba(ON_BALL, pose.alpha), rgba(self.style.palette.ink, pose.alpha), heat);
             p.solid.SetColor(&ink);
             let inside = centered_rect(at.X, at.Y, 2.0 * r, 2.0 * r);
             if slice.icon.is_empty() {
@@ -648,7 +684,7 @@ impl Overlay {
             sink.AddLine(Vector2::new(at.X - 1.3, at.Y + 3.0));
             sink.EndFigure(D2D1_FIGURE_END_OPEN);
             sink.Close()?;
-            self.paint.solid.SetColor(&rgba(ACCENT, alpha));
+            self.paint.solid.SetColor(&rgba(self.style.palette.accent, alpha));
             self.target.DrawGeometry(&geometry, &self.paint.solid, 1.6, &self.paint.round);
         }
         Ok(())
@@ -746,9 +782,9 @@ impl Overlay {
 }
 
 impl Paint {
-    fn new(factory: &ID2D1Factory, target: &ID2D1DCRenderTarget) -> Result<Self> {
+    fn new(factory: &ID2D1Factory, target: &ID2D1DCRenderTarget, palette: &Palette) -> Result<Self> {
         let black = |alpha| rgba(0, alpha);
-        let accent = |alpha| rgba(ACCENT, alpha);
+        let accent = |alpha| rgba(palette.accent, alpha);
         let white = |alpha| rgba(0xFFFFFF, alpha);
         unsafe {
             Ok(Self {
@@ -759,7 +795,7 @@ impl Paint {
                 // I colori e le posizioni del gradiente delle palline del sito (.wl-ball).
                 ball: radial(target, &[(0.0, rgba(0xF6FCFB, 1.0)), (0.28, rgba(0xD2E8E6, 1.0)), (0.64, rgba(0xA5CECD, 1.0))])?,
                 shine: radial(target, &[(0.0, white(0.92)), (0.52, white(0.0))])?,
-                star: radial(target, &[(0.0, rgba(0x83EAF0, 1.0)), (1.0, rgba(0x49C8CE, 1.0))])?,
+                star: radial(target, &[(0.0, rgba(palette.star_light, 1.0)), (1.0, rgba(palette.star_dark, 1.0))])?,
                 round: factory.CreateStrokeStyle(
                     &D2D1_STROKE_STYLE_PROPERTIES {
                         startCap: D2D1_CAP_STYLE_ROUND,
@@ -1262,6 +1298,8 @@ mod tests {
 
         // (descrizione, spicchi, mozzo, entrata, istante dell'apertura, spicchio acceso, chiusura)
         type Shot = (&'static str, Vec<SliceView>, Hub, Entrance, f32, Option<(usize, f32)>, Option<f32>);
+        // Gli ultimi provini con altri colori e meno opacità (le preferenze dell'Aspetto).
+        let styles = [(10, Accent::Pink, 0.7), (11, Accent::Lime, 1.0), (12, Accent::Violet, 0.5)];
         let shots: Vec<Shot> = vec![
             ("apertura 30 ms", eight(), Hub::Logo, Entrance::Open, 0.03, None, None),
             ("apertura 80 ms", eight(), Hub::Logo, Entrance::Open, 0.08, None, None),
@@ -1273,6 +1311,9 @@ mod tests {
             ("profilo", eight().into_iter().take(3).collect(), Hub::Title("VS Code".into()), Entrance::Open, 1.0, None, None),
             ("indietro 60 ms", eight(), Hub::Logo, Entrance::Back, 0.06, None, None),
             ("chiusura 50 ms", eight(), Hub::Logo, Entrance::Open, 1.0, Some((1, 1.0)), Some(0.05)),
+            ("rosa 70%", eight(), Hub::Logo, Entrance::Open, 1.0, Some((3, 1.0)), None),
+            ("lime", eight(), Hub::Logo, Entrance::Open, 1.0, Some((5, 1.0)), None),
+            ("viola 50%", eight(), Hub::Logo, Entrance::Open, 1.0, Some((0, 1.0)), None),
         ];
 
         let tile = (WINDOW_SIZE * dpi / 96.0).round() as usize;
@@ -1290,6 +1331,9 @@ mod tests {
 
         let mut timings = Vec::new();
         for (index, (name, slices, hub, entrance, opened, hover, closing)) in shots.into_iter().enumerate() {
+            let (accent, opacity) =
+                styles.iter().find(|(i, _, _)| *i == index).map_or((Accent::Aqua, 1.0), |&(_, a, o)| (a, o));
+            overlay.set_style(Style { zoom: 1.0, opacity, palette: accent.palette(), aim_anywhere: false });
             let n = slices.len();
             overlay.slices = slices;
             overlay.hub = hub;
@@ -1319,6 +1363,7 @@ mod tests {
             }
 
             let (_, alpha) = overlay.motion.disc();
+            let alpha = alpha * overlay.style.opacity;
             let frame = overlay.frame.as_ref().unwrap();
             let pixels = unsafe { std::slice::from_raw_parts(frame.surface.bits, tile * tile) };
             let (left, top) = ((index % columns) * tile, (index / columns) * tile);
@@ -1338,6 +1383,77 @@ mod tests {
             println!("{name:>16}: {:.2} ms", time.as_secs_f64() * 1000.0);
         }
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("wheel.bmp");
+        write_bmp(&path, width, height, &sheet);
+        println!("{}", path.display());
+    }
+
+    /// Immagine per la scheda del Microsoft Store: la ruota aperta (con uno spicchio puntato)
+    /// al centro di uno sfondo 1366×768 nei colori del sito, in target/store-ruota.bmp.
+    /// `cargo test store_screenshot -- --ignored`
+    #[test]
+    #[ignore = "scrive un'immagine in target/"]
+    fn store_screenshot() {
+        use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+
+        use crate::i18n::{self, Language};
+        use crate::tr;
+
+        // Con WHEELOR_LANG=en le etichette sono in inglese.
+        let english = std::env::var("WHEELOR_LANG").is_ok_and(|l| l == "en");
+        i18n::set(Some(if english { Language::English } else { Language::Italian }));
+        let instance: HINSTANCE = unsafe { GetModuleHandleW(None) }.unwrap().into();
+        let mut overlay = Overlay::new(instance).unwrap();
+        let slice = |icon: &str, label: &str, submenu: bool| SliceView { icon: icons::glyph(icon), label: label.into(), submenu };
+        overlay.slices = vec![
+            slice("E756", tr!("Terminale", "Terminal"), false),
+            slice("E774", "Browser", false),
+            slice("E8B7", tr!("Esplora file", "File Explorer"), false),
+            slice("E722", "Screenshot", false),
+            slice("E8C8", tr!("Copia", "Copy"), false),
+            slice("E77F", tr!("Incolla", "Paste"), false),
+            slice("E8D6", "Media", true),
+            slice("E72E", tr!("Blocca PC", "Lock PC"), false),
+        ];
+        overlay.hub = Hub::Logo;
+        let dpi = 168.0; // 175%: la ruota occupa bene l'altezza dell'immagine
+        overlay.frame = Some(Frame::new(&overlay.target, dpi, POINT::default()).unwrap());
+        let mut motion = Motion::new(8, Entrance::Open, true);
+        motion.opened = 1.0;
+        motion.heat[1] = 1.0;
+        motion.pointer = slice_angle(1, 8);
+        motion.pointer_alpha = 1.0;
+        motion.hub_mix = 1.0;
+        motion.hub_index = Some(1);
+        overlay.motion = motion;
+        overlay.draw().unwrap();
+        unsafe {
+            let _ = GdiFlush();
+        }
+
+        let (width, height) = (1366usize, 768usize);
+        // Sfondo: dal verde-azzurro scuro del sito al quasi nero, con una luce in alto a destra.
+        let mut sheet: Vec<[f32; 3]> = (0..width * height)
+            .map(|i| {
+                let (x, y) = ((i % width) as f32 / width as f32, (i / width) as f32 / height as f32);
+                let light = (1.0 - ((x - 0.8).powi(2) + (y - 0.1).powi(2)).sqrt() * 1.4).clamp(0.0, 1.0);
+                let k = y * 0.7 + x * 0.3;
+                let base = [lerp(0.10, 0.03, k), lerp(0.20, 0.07, k), lerp(0.22, 0.08, k)];
+                [base[0] + 0.05 * light, base[1] + 0.12 * light, base[2] + 0.13 * light]
+            })
+            .collect();
+        let frame = overlay.frame.as_ref().unwrap();
+        let tile = frame.size as usize;
+        let pixels = unsafe { std::slice::from_raw_parts(frame.surface.bits, tile * tile) };
+        let (left, top) = ((width - tile) / 2, (height - tile) / 2);
+        for (i, &pixel) in pixels.iter().enumerate() {
+            let dst = &mut sheet[(top + i / tile) * width + left + i % tile];
+            let a = (pixel >> 24) as f32 / 255.0;
+            for (c, shift) in [(0, 16), (1, 8), (2, 0)] {
+                dst[c] = ((pixel >> shift) & 0xFF) as f32 / 255.0 + dst[c] * (1.0 - a);
+            }
+        }
+        let name = if english { "store-ruota-en.bmp" } else { "store-ruota-it.bmp" };
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join(name);
         write_bmp(&path, width, height, &sheet);
         println!("{}", path.display());
     }

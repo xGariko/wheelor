@@ -20,8 +20,9 @@ export global Fonts {
     in property <string> icons: "Segoe Fluent Icons";
 }
 
-// La palette del sito.
-global Theme {
+// La palette del sito. Il colore di accento è una preferenza: lo imposta Rust (vedi
+// `config::Accent`); qui i valori predefiniti, l'acqua del logo.
+export global Theme {
     out property <color> bg: #081314;
     out property <color> sidebar: #0A1718;
     out property <color> raised: #0E1E20;  // finestre di dialogo
@@ -37,12 +38,15 @@ global Theme {
     out property <color> body: #A3BCBA;
     out property <color> soft: #B9D3D1;
     out property <color> faint: #8AA3A1;
-    out property <color> accent: #6FE0E6;
-    out property <color> accent-hover: #8FE9EE;
-    out property <color> accent-press: #5CCBD1;
-    out property <color> accent-soft: #6FE0E624;
-    out property <color> accent-line: #7FE6EC66;
-    out property <color> on-accent: #06191B;
+    in-out property <color> accent: #6FE0E6;
+    in-out property <color> accent-hover: #8FE9EE;
+    in-out property <color> accent-press: #5CCBD1;
+    in-out property <color> on-accent: #06191B;
+    in-out property <color> star-light: #83EAF0;
+    in-out property <color> star-dark: #49C8CE;
+    // Velature dell'accento: sfondo di ciò che è selezionato e bordi accesi.
+    out property <color> accent-soft: self.accent.with-alpha(0.14);
+    out property <color> accent-line: self.accent-hover.with-alpha(0.4);
     out property <color> danger: #FF8A8E;
     out property <color> danger-hover: #FFA5A8;
     out property <color> danger-soft: #FF8A8E1F;
@@ -100,6 +104,12 @@ export struct IconData {
     name: string,
 }
 
+// Un colore di accento tra cui scegliere.
+export struct AccentChoice {
+    name: string,
+    color: color,
+}
+
 // Tono di un pulsante.
 enum Tone { plain, primary, danger, destructive }
 
@@ -119,7 +129,7 @@ component Star inherits Path {
     viewbox-width: 686;
     viewbox-height: 838;
     commands: "M672 1015C672 1015 831.182 990.037 903.5 925.5C1004.86 835.05 1015 596 1015 596C1015 596 1025.14 835.05 1126.5 925.5C1198.82 990.037 1358 1015 1358 1015C1358 1015 1198.82 1039.96 1126.5 1104.5C1025.14 1194.95 1015 1434 1015 1434C1015 1434 1004.86 1194.95 903.5 1104.5C831.182 1039.96 672 1015 672 1015Z";
-    fill: @radial-gradient(circle, #83eaf0 0%, #49c8ce 100%);
+    fill: @radial-gradient(circle, Theme.star-light 0%, Theme.star-dark 100%);
 }
 
 // Il logo di Wheelor (assets/logo.svg) ricostruito con elementi Slint:
@@ -502,6 +512,322 @@ component Segmented {
     }
 }
 
+// Un tasto disegnato, es. "Ctrl". `lit`: acceso, mentre lo si sta premendo.
+component KeyCap inherits Rectangle {
+    in property <string> text;
+    in property <bool> lit;
+    width: max(24px, label.preferred-width + 14px);
+    height: 24px;
+    border-radius: 6px;
+    background: root.lit ? Theme.accent-soft : Theme.press;
+    border-width: 1px;
+    border-color: root.lit ? Theme.accent-line : Theme.line-strong;
+    // Bordo inferiore più marcato: sembra un tasto vero.
+    Rectangle {
+        x: 1px;
+        y: parent.height - 3px;
+        width: parent.width - 2px;
+        height: 2px;
+        border-radius: 1px;
+        background: root.lit ? Theme.accent-line : Theme.line-strong;
+    }
+    label := Text {
+        x: 0px;
+        y: 3px;
+        width: parent.width;
+        height: parent.height - 7px;
+        text: root.text;
+        horizontal-alignment: center;
+        font-size: 12px;
+        font-weight: 600;
+        vertical-alignment: center;
+        color: root.lit ? Theme.heading : Theme.text;
+    }
+}
+
+// Campo che registra una combinazione di tasti: un clic (o Invio) e si premono i tasti.
+// L'ascolto vero lo fa Rust (settings/capture.rs), che aggiorna `held` mentre si compone.
+component KeyField {
+    in property <[string]> caps;  // la combinazione attuale, un tasto per voce
+    in property <[string]> held;  // i modificatori tenuti premuti mentre ascolta
+    in property <bool> listening;
+    in property <string> empty-text: @tr("Nessuna");
+    callback clicked();
+
+    height: Theme.control;
+    min-width: 220px;
+    forward-focus: keys;
+    accessible-role: button;
+    accessible-label: root.listening ? @tr("In ascolto: premi la combinazione di tasti, Esc per annullare") : @tr("Combinazione di tasti: premi Invio per cambiarla");
+    accessible-action-default => { root.clicked(); }
+
+    Rectangle {
+        border-radius: 8px;
+        background: root.listening ? Theme.accent-soft : touch.has-hover ? Theme.hover : Theme.card;
+        border-width: 1px;
+        border-color: root.listening ? Theme.accent : touch.has-hover ? Theme.line-strong : Theme.card-border;
+        animate background, border-color { duration: Theme.quick; }
+    }
+    if keys.has-focus && !root.listening: FocusRing {
+        around-width: root.width;
+        around-height: root.height;
+        border-radius: 10px;
+    }
+    HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 12px;
+        spacing: 4px;
+        if !root.listening: HorizontalLayout {
+            spacing: 4px;
+            for cap in root.caps: VerticalLayout {
+                alignment: center;
+                KeyCap { text: cap; }
+            }
+        }
+        if !root.listening && root.caps.length == 0: Text {
+            text: root.empty-text;
+            font-size: 14px;
+            vertical-alignment: center;
+            color: Theme.faint;
+        }
+        if root.listening: HorizontalLayout {
+            spacing: 4px;
+            for cap in root.held: VerticalLayout {
+                alignment: center;
+                KeyCap {
+                    text: cap;
+                    lit: true;
+                }
+            }
+        }
+        if root.listening: Text {
+            text: root.held.length == 0 ? @tr("Premi i tasti…") : "+ …";
+            font-size: 14px;
+            vertical-alignment: center;
+            color: Theme.accent;
+        }
+        Rectangle { horizontal-stretch: 1; }
+        // In ascolto: un puntino che pulsa, come una registrazione. Altrimenti, l'icona della tastiera.
+        if root.listening: VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
+                background: Theme.accent;
+                opacity: 0.35 + 0.65 * abs(sin(animation-tick() / 1ms * 0.18deg));
+            }
+        }
+        if !root.listening: Glyph {
+            text: "\u{E765}";
+            font-size: 15px;
+            color: touch.has-hover ? Theme.soft : Theme.faint;
+        }
+    }
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Return || event.text == Key.Space {
+                root.clicked();
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Cursore per scegliere un valore in un intervallo. Frecce (o Pag su/giù) per cambiarlo da tastiera.
+component ValueSlider {
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    in property <float> step: 1;
+    in property <string> label;  // letto dagli screen reader
+    in-out property <float> value;
+    callback changed(float);
+
+    property <length> thumb: 18px;
+    property <float> ratio: (root.value - root.minimum) / max(1, root.maximum - root.minimum);
+    function set(v: float) {
+        if clamp(round(v / root.step) * root.step, root.minimum, root.maximum) != root.value {
+            root.value = clamp(round(v / root.step) * root.step, root.minimum, root.maximum);
+            root.changed(root.value);
+        }
+    }
+    function set-at(x: length) {
+        root.set(root.minimum + (x - root.thumb / 2) / max(1px, root.width - root.thumb) * (root.maximum - root.minimum));
+    }
+
+    height: Theme.control;
+    min-width: 160px;
+    forward-focus: keys;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: "\{round(root.value)}";
+    accessible-value-minimum: root.minimum;
+    accessible-value-maximum: root.maximum;
+    accessible-value-step: root.step;
+    accessible-action-increment => { root.set(root.value + root.step); }
+    accessible-action-decrement => { root.set(root.value - root.step); }
+
+    // Binario, con la parte già percorsa del colore di accento.
+    Rectangle {
+        x: root.thumb / 2;
+        y: (root.height - 4px) / 2;
+        width: root.width - root.thumb;
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.press;
+    }
+    Rectangle {
+        x: root.thumb / 2;
+        y: (root.height - 4px) / 2;
+        width: root.ratio * (root.width - root.thumb);
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.accent;
+    }
+    if keys.has-focus: FocusRing {
+        x: root.ratio * (root.width - root.thumb) - 3px;
+        y: (root.height - root.thumb) / 2 - 3px;
+        around-width: root.thumb;
+        around-height: root.thumb;
+        border-radius: self.height / 2;
+    }
+    Rectangle {
+        x: root.ratio * (root.width - root.thumb);
+        y: (root.height - root.thumb) / 2;
+        width: root.thumb;
+        height: root.thumb;
+        border-radius: root.thumb / 2;
+        background: touch.pressed ? Theme.accent-press : touch.has-hover ? Theme.accent-hover : Theme.accent;
+        drop-shadow-blur: 6px;
+        drop-shadow-color: #00000066;
+        animate background { duration: Theme.quick; }
+        Rectangle {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: Theme.on-accent;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                root.set-at(self.mouse-x);
+                keys.focus();
+            }
+        }
+        moved => {
+            if self.pressed { root.set-at(self.mouse-x); }
+        }
+    }
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.LeftArrow || event.text == Key.DownArrow {
+                root.set(root.value - root.step);
+                return accept;
+            }
+            if event.text == Key.RightArrow || event.text == Key.UpArrow {
+                root.set(root.value + root.step);
+                return accept;
+            }
+            if event.text == Key.PageDown || event.text == Key.Home {
+                root.set(event.text == Key.Home ? root.minimum : root.value - 4 * root.step);
+                return accept;
+            }
+            if event.text == Key.PageUp || event.text == Key.End {
+                root.set(event.text == Key.End ? root.maximum : root.value + 4 * root.step);
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
+// Campioni di colore: quello scelto ha un anello e il segno di spunta. Frecce per cambiarlo.
+component Swatches {
+    in property <[AccentChoice]> choices;
+    in-out property <int> current;
+    callback selected(int);
+
+    function choose(index: int) {
+        if index >= 0 && index < root.choices.length && index != root.current {
+            root.current = index;
+            root.selected(index);
+        }
+    }
+
+    height: 36px;
+    forward-focus: keys;
+    accessible-role: list;
+    accessible-label: @tr("Colore");
+
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+        for choice[i] in root.choices: Rectangle {
+            property <bool> chosen: i == root.current;
+            width: 36px;
+            height: 36px;
+            accessible-role: button;
+            accessible-label: choice.name;
+            accessible-checkable: true;
+            accessible-checked: self.chosen;
+            accessible-action-default => { root.choose(i); }
+            // Anello del colore attorno a quello scelto, alone sotto il mouse.
+            Rectangle {
+                width: 36px;
+                height: 36px;
+                border-radius: 18px;
+                border-width: parent.chosen ? 2px : 0px;
+                border-color: choice.color;
+                background: touch.has-hover && !parent.chosen ? choice.color.with-alpha(0.18) : transparent;
+                animate background { duration: Theme.quick; }
+            }
+            Rectangle {
+                width: parent.chosen ? 24px : 28px;
+                height: self.width;
+                border-radius: self.width / 2;
+                background: choice.color;
+                animate width { duration: Theme.smooth; easing: cubic-bezier(0.2, 0.8, 0.2, 1); }
+                if parent.chosen: Glyph {
+                    text: "\u{E73E}";
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #06191B;
+                }
+            }
+            touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.choose(i); }
+            }
+        }
+    }
+    if keys.has-focus: FocusRing {
+        x: root.current * 44px - 3px;
+        around-width: 36px;
+        around-height: 36px;
+        border-radius: 21px;
+    }
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.LeftArrow {
+                root.choose(root.current - 1);
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                root.choose(root.current + 1);
+                return accept;
+            }
+            return reject;
+        }
+    }
+}
+
 // Una riga cliccabile: icona, testo e (facoltativo) dettaglio.
 component Row inherits Rectangle {
     in property <string> glyph;
@@ -576,7 +902,7 @@ component IconBox inherits Rectangle {
     border-color: root.active ? Theme.accent : touch.has-hover ? Theme.line-strong : Theme.card-border;
     animate background, border-color { duration: Theme.quick; }
     accessible-role: button;
-    accessible-label: "Scegli l'icona";
+    accessible-label: @tr("Scegli l'icona");
     accessible-action-default => { root.clicked(); }
     Glyph {
         text: root.glyph;
@@ -610,7 +936,7 @@ component IconPicker inherits Rectangle {
         padding: 16px;
         spacing: 12px;
         LineEdit {
-            placeholder-text: "Cerca un'icona (es. cartella, mail, play, E8B7)…";
+            placeholder-text: @tr("Cerca un'icona (es. cartella, mail, play, E8B7)…");
             text <=> root.search;
             edited(text) => {
                 root.hovered = "";
@@ -646,7 +972,7 @@ component IconPicker inherits Rectangle {
             }
         }
         Hint {
-            text: root.icons.length == 0 ? "Nessuna icona trovata." : root.hovered != "" ? root.hovered : "Passa sopra un'icona per vederne il nome.";
+            text: root.icons.length == 0 ? @tr("Nessuna icona trovata.") : root.hovered != "" ? root.hovered : @tr("Passa sopra un'icona per vederne il nome.");
             wrap: no-wrap;
         }
     }
@@ -916,7 +1242,7 @@ component WheelPreview inherits Rectangle {
     if root.count == 0: Text {
         y: 80 * root.u;
         width: 304 * root.u;
-        text: "Ruota vuota";
+        text: @tr("Ruota vuota");
         font-size: 13px;
         horizontal-alignment: center;
         color: Theme.faint;
@@ -1028,7 +1354,7 @@ component SlotItem inherits Rectangle {
                 color: root.selected ? Theme.heading : Theme.text;
             }
             if root.slot.submenu: Text {
-                text: "Sottomenu";
+                text: @tr("Sottomenu");
                 font-size: 12px;
                 color: Theme.faint;
             }
@@ -1039,7 +1365,7 @@ component SlotItem inherits Rectangle {
                 alignment: center;
                 IconBtn {
                     glyph: "\u{E70E}";
-                    label: "Sposta prima";
+                    label: @tr("Sposta prima");
                     enabled: !root.first;
                     clicked => { root.shift(-1); }
                 }
@@ -1048,7 +1374,7 @@ component SlotItem inherits Rectangle {
                 alignment: center;
                 IconBtn {
                     glyph: "\u{E70D}";
-                    label: "Sposta dopo";
+                    label: @tr("Sposta dopo");
                     enabled: !root.last;
                     clicked => { root.shift(1); }
                 }
@@ -1057,7 +1383,7 @@ component SlotItem inherits Rectangle {
                 alignment: center;
                 IconBtn {
                     glyph: "\u{E70F}";
-                    label: root.slot.submenu ? "Apri la ruota" : "Modifica l'azione";
+                    label: root.slot.submenu ? @tr("Apri la ruota") : @tr("Modifica l'azione");
                     clicked => { root.edit(); }
                 }
             }
@@ -1065,7 +1391,7 @@ component SlotItem inherits Rectangle {
                 alignment: center;
                 IconBtn {
                     glyph: "\u{E711}";
-                    label: "Togli dalla ruota";
+                    label: @tr("Togli dalla ruota");
                     danger: true;
                     clicked => { root.discard(); }
                 }
@@ -1114,7 +1440,7 @@ component SlotList inherits VerticalLayout {
         border-width: 1px;
         border-color: Theme.line-strong;
         Text {
-            text: "Nessun elemento: aggiungi la prima azione.";
+            text: @tr("Nessun elemento: aggiungi la prima azione.");
             font-size: 13px;
             color: Theme.body;
         }
@@ -1124,21 +1450,21 @@ component SlotList inherits VerticalLayout {
         spacing: 8px;
         alignment: start;
         Btn {
-            text: "Aggiungi azione";
+            text: @tr("Aggiungi azione");
             glyph: "\u{E710}";
             tone: Tone.primary;
             enabled: root.slots.length < root.max-slots;
             clicked => { root.add(1); }
         }
         Btn {
-            text: "Aggiungi sottomenu";
+            text: @tr("Aggiungi sottomenu");
             glyph: "\u{E8A9}";
             enabled: root.slots.length < root.max-slots;
             clicked => { root.add(2); }
         }
     }
     if root.slots.length >= root.max-slots: Hint {
-        text: "La ruota è piena: togli un elemento per aggiungerne un altro.";
+        text: @tr("La ruota è piena: togli un elemento per aggiungerne un altro.");
     }
 }
 
@@ -1207,7 +1533,7 @@ component Confirm inherits Dialog {
     in property <string> note;
     in property <string> glyph;
     in property <bool> danger;
-    in property <string> cancel-text: "Annulla";
+    in property <string> cancel-text: @tr("Annulla");
     in property <string> confirm-text;
     accepted => { self.confirmed(); }
     callback confirmed();
@@ -1266,7 +1592,7 @@ component Confirm inherits Dialog {
 // ── Finestra ─────────────────────────────────────────────────────────────────
 
 export component SettingsWindow inherits Window {
-    title: "Wheelor – Impostazioni";
+    title: @tr("Wheelor – Impostazioni");
     preferred-width: 1120px;
     preferred-height: 780px;
     min-width: 880px;
@@ -1299,6 +1625,8 @@ export component SettingsWindow inherits Window {
     in property <bool> dirty;
     in property <string> config-path;
     in property <string> version;
+    // Versione del Microsoft Store: gli aggiornamenti li fa lo Store.
+    in property <bool> store;
 
     // Pagina visibile: 0 ruote, 1 libreria, 2 generale, 3 informazioni.
     in-out property <int> page: 0;
@@ -1326,13 +1654,37 @@ export component SettingsWindow inherits Window {
     in-out property <string> ed-target;
     in-out property <string> ed-args;
     in-out property <string> ed-keys;
+    in property <[string]> ed-keys-caps;  // ed-keys come tasti disegnati
     in-out property <string> ed-text;
     in property <string> ed-usage;
 
     // Impostazioni generali. wheel-size: 0 normale, 1 grande, 2 molto grande.
     in-out property <string> hotkey;
+    in property <[string]> hotkey-caps;
+    in property <string> hotkey-note;  // sotto la scorciatoia: un problema, o che va bene
+    in property <bool> hotkey-note-error;
     in-out property <int> wheel-size;
+    in-out property <float> wheel-opacity: 100;  // percentuale
+    in property <[AccentChoice]> accents;
+    in-out property <int> accent;  // indice in `accents`
+    in-out property <bool> aim-anywhere;
+    in-out property <int> language;  // 0 come Windows, 1 italiano, 2 inglese
     in-out property <bool> autostart;
+    in-out property <bool> check-updates: true;
+
+    // Registrazione di una combinazione di tasti: 0 nessuna, 1 la scorciatoia, 2 i tasti di
+    // un'azione. `held`: i modificatori tenuti premuti nel frattempo.
+    in property <int> listening: 0;
+    in property <[string]> held-caps;
+
+    // Aggiornamenti. update-version: la nuova versione disponibile ("" = nessuna).
+    // update-state: 0 fermo, 1 controllo in corso, 2 conferma, 3 download, 4 installazione.
+    in property <string> update-version;
+    in property <string> update-size;
+    in property <string> update-message;
+    in property <bool> update-error;
+    in property <int> update-state: 0;
+    in property <float> update-progress;
 
     // Selettore icone (0 chiuso, 1 per l'azione, 2 per la ruota) e finestra di scelta
     // (0 chiusa, 1 azioni, 2 sottomenu, 3 app aperte).
@@ -1374,6 +1726,15 @@ export component SettingsWindow inherits Window {
     callback browse();
     callback test();
     callback general-edited();
+    callback accent-picked(int);
+    callback language-picked(int);
+    callback listen(int);
+    callback stop-listening();
+    callback check-for-updates();
+    callback ask-update();
+    callback cancel-update();
+    callback confirm-update();
+    callback open-release-notes();
     callback open-config-folder();
     callback save();
     callback close-without-saving();
@@ -1416,7 +1777,7 @@ export component SettingsWindow inherits Window {
                     HorizontalLayout {
                         padding-left: 14px;
                         padding-bottom: 8px;
-                        Eyebrow { text: "RUOTE"; }
+                        Eyebrow { text: @tr("RUOTE"); }
                     }
                     // Le ruote e, subito sotto l'ultima, "Nuova ruota".
                     ScrollView {
@@ -1436,7 +1797,7 @@ export component SettingsWindow inherits Window {
                             }
                             Row {
                                 glyph: "\u{E710}";
-                                text: "Nuova ruota";
+                                text: @tr("Nuova ruota");
                                 action: true;
                                 clicked => { root.new-wheel(); }
                             }
@@ -1449,22 +1810,70 @@ export component SettingsWindow inherits Window {
                     }
                     Row {
                         glyph: "\u{E8F1}";
-                        text: "Libreria";
-                        detail: root.action-count == 1 ? "1 azione" : "\{root.action-count} azioni";
+                        text: @tr("Libreria");
+                        detail: @tr("{n} azione" | "{n} azioni" % root.action-count);
                         selected: root.page == 1;
                         clicked => { root.page = 1; }
                     }
                     Row {
                         glyph: "\u{E713}";
-                        text: "Generale";
+                        text: @tr("Generale");
                         selected: root.page == 2;
                         clicked => { root.page = 2; }
                     }
                     Row {
                         glyph: "\u{E946}";
-                        text: "Informazioni";
+                        text: @tr("Informazioni");
+                        detail: root.update-version != "" ? @tr("Nuova versione disponibile") : "";
                         selected: root.page == 3;
                         clicked => { root.page = 3; }
+                    }
+                    // Nuova versione: un riquadro sempre in vista, con il pulsante per installarla.
+                    if root.update-version != "": VerticalLayout {
+                        padding-top: 12px;
+                        Rectangle {
+                            border-radius: 12px;
+                            background: Theme.accent-soft;
+                            border-width: 1px;
+                            border-color: Theme.accent-line;
+                            VerticalLayout {
+                                padding: 14px;
+                                spacing: 10px;
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    Glyph {
+                                        width: 18px;
+                                        text: "\u{E896}";
+                                        font-size: 16px;
+                                        color: Theme.accent;
+                                    }
+                                    VerticalLayout {
+                                        spacing: 2px;
+                                        Text {
+                                            text: @tr("Wheelor {}", root.update-version);
+                                            font-size: 14px;
+                                            font-weight: 600;
+                                            overflow: elide;
+                                            color: Theme.heading;
+                                        }
+                                        Text {
+                                            text: @tr("È pronta da installare");
+                                            font-size: 12px;
+                                            color: Theme.soft;
+                                        }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    alignment: start;
+                                    Btn {
+                                        text: @tr("Aggiorna");
+                                        glyph: "\u{E896}";
+                                        tone: Tone.primary;
+                                        clicked => { root.ask-update(); }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1474,10 +1883,10 @@ export component SettingsWindow inherits Window {
                 horizontal-stretch: 1;
 
                 PageHeader {
-                    title: root.wh-name != "" ? root.wh-name : "Ruota senza nome";
+                    title: root.wh-name != "" ? root.wh-name : @tr("Ruota senza nome");
                     subtitle: root.wh-hint;
                     if !root.wh-main: Btn {
-                        text: "Elimina ruota";
+                        text: @tr("Elimina ruota");
                         glyph: "\u{E74D}";
                         tone: Tone.danger;
                         clicked => { root.ask-delete(1); }
@@ -1485,9 +1894,9 @@ export component SettingsWindow inherits Window {
                 }
 
                 Section {
-                    title: "Elementi";
-                    aside: "\{root.slots.length} di \{root.max-slots}";
-                    description: "In senso orario dall'alto; il numero è il tasto rapido. Clic su un elemento, qui o sulla ruota, per spostarlo, modificarlo o toglierlo.";
+                    title: @tr("Elementi");
+                    aside: @tr("{} di {}", root.slots.length, root.max-slots);
+                    description: @tr("In senso orario dall'alto; il numero è il tasto rapido. Clic su un elemento, qui o sulla ruota, per spostarlo, modificarlo o toglierlo.");
                     Card {
                         VerticalLayout {
                             // Largo: anteprima a sinistra, elenco a destra. Stretto: uno sopra l'altro.
@@ -1501,6 +1910,7 @@ export component SettingsWindow inherits Window {
                                         current: root.current-slot;
                                         title: root.wh-main ? "" : root.wh-name;
                                         zoom: root.preview-zoom;
+                                        opacity: root.wheel-opacity / 100;
                                         clicked-at(x, y) => { root.preview-clicked(x, y); }
                                     }
                                 }
@@ -1525,6 +1935,7 @@ export component SettingsWindow inherits Window {
                                         slots: root.slots;
                                         current: root.current-slot;
                                         title: root.wh-main ? "" : root.wh-name;
+                                        opacity: root.wheel-opacity / 100;
                                         clicked-at(x, y) => { root.preview-clicked(x, y); }
                                     }
                                 }
@@ -1544,8 +1955,8 @@ export component SettingsWindow inherits Window {
                 }
 
                 Section {
-                    title: "Nome e icona";
-                    description: root.wh-main ? "" : "L'icona compare sulla pallina quando questa ruota è un sottomenu.";
+                    title: @tr("Nome e icona");
+                    description: root.wh-main ? "" : @tr("L'icona compare sulla pallina quando questa ruota è un sottomenu.");
                     HorizontalLayout {
                         spacing: 16px;
                         IconBox {
@@ -1555,7 +1966,7 @@ export component SettingsWindow inherits Window {
                             clicked => { root.picking-icon = root.picking-icon == 2 ? 0 : 2; }
                         }
                         Field {
-                            label: "Nome";
+                            label: @tr("Nome");
                             horizontal-stretch: 1;
                             LineEdit {
                                 text <=> root.wh-name;
@@ -1573,17 +1984,17 @@ export component SettingsWindow inherits Window {
                 }
 
                 if !root.wh-main: Section {
-                    title: "Profilo";
-                    description: "Con una di queste app in primo piano, la scorciatoia apre questa ruota al posto della principale.";
+                    title: @tr("Profilo");
+                    description: @tr("Con una di queste app in primo piano, la scorciatoia apre questa ruota al posto della principale.");
                     HorizontalLayout {
                         spacing: 8px;
                         LineEdit {
                             text <=> root.wh-apps;
-                            placeholder-text: "es. code.exe, notepad.exe (separate da virgole)";
+                            placeholder-text: @tr("es. code.exe, notepad.exe (separate da virgole)");
                             edited(text) => { root.wheel-edited(); }
                         }
                         Btn {
-                            text: "Scegli tra le app aperte";
+                            text: @tr("Scegli tra le app aperte");
                             glyph: "\u{E737}";
                             clicked => { root.open-picker(3); }
                         }
@@ -1611,7 +2022,7 @@ export component SettingsWindow inherits Window {
                             padding-left: 4px;
                             Text {
                                 horizontal-stretch: 1;
-                                text: "Libreria";
+                                text: @tr("Libreria");
                                 font-size: 26px;
                                 font-weight: 600;
                                 letter-spacing: -0.4px;
@@ -1621,7 +2032,7 @@ export component SettingsWindow inherits Window {
                             VerticalLayout {
                                 alignment: center;
                                 Btn {
-                                    text: "Nuova";
+                                    text: @tr("Nuova");
                                     glyph: "\u{E710}";
                                     tone: Tone.primary;
                                     clicked => { root.new-action(); }
@@ -1630,7 +2041,7 @@ export component SettingsWindow inherits Window {
                         }
                         LineEdit {
                             text <=> root.action-search;
-                            placeholder-text: "Cerca un'azione…";
+                            placeholder-text: @tr("Cerca un'azione…");
                             edited(text) => { root.search-actions(text); }
                         }
                         ListView {
@@ -1644,7 +2055,7 @@ export component SettingsWindow inherits Window {
                             }
                         }
                         if root.actions.length == 0: Hint {
-                            text: root.action-search != "" ? "Nessuna azione trovata." : "Nessuna azione: creane una con «Nuova».";
+                            text: root.action-search != "" ? @tr("Nessuna azione trovata.") : @tr("Nessuna azione: creane una con «Nuova».");
                         }
                     }
                 }
@@ -1656,7 +2067,7 @@ export component SettingsWindow inherits Window {
                 if root.current-action == "": Rectangle {
                     horizontal-stretch: 2;
                     Text {
-                        text: "Seleziona un'azione a sinistra, oppure creane una nuova.";
+                        text: @tr("Seleziona un'azione a sinistra, oppure creane una nuova.");
                         font-size: 14px;
                         color: Theme.faint;
                     }
@@ -1667,15 +2078,15 @@ export component SettingsWindow inherits Window {
                     horizontal-stretch: 2;
 
                     PageHeader {
-                        title: root.ed-label != "" ? root.ed-label : "Azione senza nome";
+                        title: root.ed-label != "" ? root.ed-label : @tr("Azione senza nome");
                         subtitle: root.ed-usage;
                         Btn {
-                            text: "Duplica";
+                            text: @tr("Duplica");
                             glyph: "\u{E8C8}";
                             clicked => { root.duplicate-action(); }
                         }
                         Btn {
-                            text: "Elimina";
+                            text: @tr("Elimina");
                             glyph: "\u{E74D}";
                             tone: Tone.danger;
                             clicked => { root.ask-delete(2); }
@@ -1683,7 +2094,7 @@ export component SettingsWindow inherits Window {
                     }
 
                     Section {
-                        title: "Nome e icona";
+                        title: @tr("Nome e icona");
                         HorizontalLayout {
                             spacing: 16px;
                             IconBox {
@@ -1692,11 +2103,11 @@ export component SettingsWindow inherits Window {
                                 clicked => { root.picking-icon = root.picking-icon == 1 ? 0 : 1; }
                             }
                             Field {
-                                label: "Etichetta";
+                                label: @tr("Etichetta");
                                 horizontal-stretch: 1;
                                 LineEdit {
                                     text <=> root.ed-label;
-                                    placeholder-text: "Nome mostrato sulla ruota";
+                                    placeholder-text: @tr("Nome mostrato sulla ruota");
                                     edited(text) => { root.action-edited(); }
                                 }
                             }
@@ -1711,9 +2122,9 @@ export component SettingsWindow inherits Window {
                     }
 
                     Section {
-                        title: "Cosa fa";
+                        title: @tr("Cosa fa");
                         Segmented {
-                            labels: ["Comando", "Apri", "Tasti", "Testo"];
+                            labels: [@tr("Comando"), @tr("Apri"), @tr("Tasti"), @tr("Testo")];
                             glyphs: ["\u{E756}", "\u{E8A7}", "\u{E765}", "\u{E8D2}"];
                             current <=> root.ed-kind;
                             selected(index) => { root.action-edited(); }
@@ -1722,7 +2133,7 @@ export component SettingsWindow inherits Window {
                         if root.ed-kind == 0: VerticalLayout {
                             spacing: 20px;
                             Field {
-                                label: "Comando";
+                                label: @tr("Comando");
                                 TextEdit {
                                     text <=> root.ed-command;
                                     min-height: 120px;
@@ -1735,59 +2146,59 @@ export component SettingsWindow inherits Window {
                                     label: "Shell";
                                     horizontal-stretch: 1;
                                     ComboBox {
-                                        model: ["PowerShell", "PowerShell 7 (pwsh)", "Prompt dei comandi (cmd)"];
+                                        model: ["PowerShell", "PowerShell 7 (pwsh)", @tr("Prompt dei comandi (cmd)")];
                                         current-index <=> root.ed-shell;
                                         selected(value) => { root.action-edited(); }
                                     }
                                 }
                                 Field {
-                                    label: "Finestra";
+                                    label: @tr("Finestra");
                                     horizontal-stretch: 1;
                                     ComboBox {
-                                        model: ["Nascosta (in background)", "Visibile", "Visibile, resta aperta"];
+                                        model: [@tr("Nascosta (in background)"), @tr("Visibile"), @tr("Visibile, resta aperta")];
                                         current-index <=> root.ed-window;
                                         selected(value) => { root.action-edited(); }
                                     }
                                 }
                             }
                             Field {
-                                label: "Cartella di lavoro";
+                                label: @tr("Cartella di lavoro");
                                 LineEdit {
                                     text <=> root.ed-cwd;
-                                    placeholder-text: "Vuota = cartella utente. Accetta %VARIABILI% e ~";
+                                    placeholder-text: @tr("Vuota = cartella utente. Accetta %VARIABILI% e ~");
                                     edited(text) => { root.action-edited(); }
                                 }
                             }
                             Toggle {
-                                text: "Esegui come amministratore";
+                                text: @tr("Esegui come amministratore");
                                 checked <=> root.ed-admin;
                                 toggled => { root.action-edited(); }
                             }
                             Hint {
-                                text: "Variabili d'ambiente: WHEELOR_APP e WHEELOR_TITLE (app e finestra in primo piano quando hai aperto la ruota), WHEELOR_PROFILE (ruota di partenza). In modalità nascosta, se il comando fallisce compare una notifica.";
+                                text: @tr("Variabili d'ambiente: WHEELOR_APP e WHEELOR_TITLE (app e finestra in primo piano quando hai aperto la ruota), WHEELOR_PROFILE (ruota di partenza). In modalità nascosta, se il comando fallisce compare una notifica.");
                             }
                         }
 
                         if root.ed-kind == 1: VerticalLayout {
                             spacing: 20px;
                             Field {
-                                label: "App, file, cartella o indirizzo web";
+                                label: @tr("App, file, cartella o indirizzo web");
                                 HorizontalLayout {
                                     spacing: 8px;
                                     LineEdit {
                                         text <=> root.ed-target;
-                                        placeholder-text: "es. notepad.exe, C:\\Progetti, https://…";
+                                        placeholder-text: @tr("es. notepad.exe, C:\\Progetti, https://…");
                                         edited(text) => { root.action-edited(); }
                                     }
                                     Btn {
-                                        text: "Sfoglia";
+                                        text: @tr("Sfoglia");
                                         glyph: "\u{E838}";
                                         clicked => { root.browse(); }
                                     }
                                 }
                             }
                             Field {
-                                label: "Argomenti (facoltativi)";
+                                label: @tr("Argomenti (facoltativi)");
                                 LineEdit {
                                     text <=> root.ed-args;
                                     edited(text) => { root.action-edited(); }
@@ -1796,22 +2207,69 @@ export component SettingsWindow inherits Window {
                         }
 
                         if root.ed-kind == 2: VerticalLayout {
-                            spacing: 20px;
+                            spacing: 12px;
                             Field {
-                                label: "Combinazione di tasti";
-                                LineEdit {
-                                    text <=> root.ed-keys;
-                                    placeholder-text: "es. Ctrl+Shift+S, Win+E, MediaPlayPause";
-                                    edited(text) => { root.action-edited(); }
+                                label: @tr("Combinazione di tasti");
+                                KeyField {
+                                    caps: root.ed-keys-caps;
+                                    held: root.held-caps;
+                                    listening: root.listening == 2;
+                                    empty-text: @tr("Clic qui, poi premi i tasti da inviare");
+                                    clicked => { root.listen(2); }
                                 }
                             }
                             Hint {
-                                text: "Modificatori: Ctrl, Alt, Shift, Win. Tasti: lettere, cifre, F1–F24, Enter, Esc, Tab, Space, Delete, Home, End, PageUp, PageDown, frecce (Up, Down, Left, Right), PrintScreen. Multimediali: MediaPlayPause, MediaNext, MediaPrev, VolumeUp, VolumeDown, VolumeMute.";
+                                text: @tr("Clic sul campo e premi la combinazione, anche con Win o Stamp. Per i tasti che forse non hai, o per Esc (che annulla), usa questi:");
+                            }
+                            // I tasti che non si possono premere nel campo (o che la tastiera non ha),
+                            // in una griglia che va a capo quando lo spazio non basta.
+                            Rectangle {
+                                property <[{label: string, keys: string}]> special: [
+                                    { label: "Esc", keys: "Esc" },
+                                    { label: @tr("Play/Pausa"), keys: "MediaPlayPause" },
+                                    { label: @tr("Successivo"), keys: "MediaNext" },
+                                    { label: @tr("Precedente"), keys: "MediaPrev" },
+                                    { label: "Volume +", keys: "VolumeUp" },
+                                    { label: "Volume −", keys: "VolumeDown" },
+                                    { label: @tr("Muto"), keys: "VolumeMute" },
+                                ];
+                                property <length> cell: 112px;
+                                property <int> columns: max(1, floor((self.width + 6px) / (self.cell + 6px)));
+                                height: ceil(self.special.length / self.columns) * 34px - 6px;
+                                for key[i] in self.special: Rectangle {
+                                    x: mod(i, parent.columns) * (parent.cell + 6px);
+                                    y: floor(i / parent.columns) * 34px;
+                                    width: parent.cell;
+                                    height: 28px;
+                                    border-radius: 14px;
+                                    background: chip.pressed ? Theme.press : chip.has-hover ? Theme.hover : transparent;
+                                    border-width: 1px;
+                                    border-color: chip.has-hover ? Theme.accent-line : Theme.line-strong;
+                                    animate background, border-color { duration: Theme.quick; }
+                                    accessible-role: button;
+                                    accessible-label: key.label;
+                                    accessible-action-default => {
+                                        root.ed-keys = key.keys;
+                                        root.action-edited();
+                                    }
+                                    Text {
+                                        text: key.label;
+                                        font-size: 13px;
+                                        color: Theme.text;
+                                    }
+                                    chip := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.ed-keys = key.keys;
+                                            root.action-edited();
+                                        }
+                                    }
+                                }
                             }
                         }
 
                         if root.ed-kind == 3: Field {
-                            label: "Testo da scrivere";
+                            label: @tr("Testo da scrivere");
                             TextEdit {
                                 text <=> root.ed-text;
                                 min-height: 120px;
@@ -1823,7 +2281,7 @@ export component SettingsWindow inherits Window {
                     HorizontalLayout {
                         alignment: start;
                         Btn {
-                            text: "Prova azione";
+                            text: @tr("Prova azione");
                             glyph: "\u{E768}";
                             clicked => { root.test(); }
                         }
@@ -1834,51 +2292,151 @@ export component SettingsWindow inherits Window {
             // ── Pagina Generale ──────────────────────────────────────────────
             if root.page == 2: Page {
                 horizontal-stretch: 1;
-                PageHeader { title: "Generale"; }
-                Card {
-                    VerticalLayout {
-                        SettingRow {
-                            title: "Scorciatoia";
-                            description: "Premila e rilasciala: punta un'azione e scegli con un clic o con Spazio. Oppure tienila premuta, punta e rilascia. Es. Ctrl+Alt+W, Win+Shift+Space, F13.";
-                            LineEdit {
-                                width: 200px;
-                                text <=> root.hotkey;
-                                edited(text) => { root.general-edited(); }
+                PageHeader { title: @tr("Generale"); }
+
+                Section {
+                    title: @tr("Ruota");
+                    Card {
+                        VerticalLayout {
+                            SettingRow {
+                                title: @tr("Scorciatoia");
+                                description: @tr("Clic sul campo e premi la combinazione che apre la ruota, es. Ctrl+Alt+W o Win+Shift+Spazio. Premila e rilasciala per scegliere con un clic o con Spazio, oppure tienila premuta, punta e rilascia.");
+                                VerticalLayout {
+                                    spacing: 6px;
+                                    KeyField {
+                                        width: 260px;
+                                        caps: root.hotkey-caps;
+                                        held: root.held-caps;
+                                        listening: root.listening == 1;
+                                        clicked => { root.listen(1); }
+                                    }
+                                    if root.hotkey-note != "": Text {
+                                        width: 260px;
+                                        text: root.hotkey-note;
+                                        font-size: 12px;
+                                        wrap: word-wrap;
+                                        color: root.hotkey-note-error ? Theme.danger : Theme.soft;
+                                    }
+                                }
                             }
-                        }
-                        Divider { }
-                        SettingRow {
-                            title: "Dimensione della ruota";
-                            description: "Quanto è grande la ruota sullo schermo.";
-                            Segmented {
-                                width: 300px;
-                                labels: ["Normale", "Grande", "Molto grande"];
-                                current <=> root.wheel-size;
-                                selected(index) => { root.general-edited(); }
-                            }
-                        }
-                        Divider { }
-                        SettingRow {
-                            title: "Avvia con Windows";
-                            description: "Wheelor parte in background quando accedi.";
-                            Toggle {
-                                checked <=> root.autostart;
-                                toggled => { root.general-edited(); }
-                            }
-                        }
-                        Divider { }
-                        SettingRow {
-                            title: "File di configurazione";
-                            description: root.config-path;
-                            Btn {
-                                text: "Apri cartella";
-                                glyph: "\u{E838}";
-                                clicked => { root.open-config-folder(); }
+                            Divider { }
+                            SettingRow {
+                                title: @tr("Punta da tutto lo schermo");
+                                description: root.aim-anywhere
+                                    ? @tr("Conta solo la direzione del mouse, anche oltre il bordo della ruota: un clic ovunque sceglie l'azione puntata.")
+                                    : @tr("Fuori dalla ruota non si punta nulla, e un clic fuori la chiude.");
+                                Toggle {
+                                    checked <=> root.aim-anywhere;
+                                    toggled => { root.general-edited(); }
+                                }
                             }
                         }
                     }
                 }
-                Hint { text: "Il file di configurazione si può modificare anche a mano: Wheelor lo ricarica alla successiva apertura della ruota."; }
+
+                Section {
+                    title: @tr("Aspetto");
+                    Card {
+                        VerticalLayout {
+                            SettingRow {
+                                title: @tr("Colore");
+                                description: root.accents.length > root.accent && root.accent >= 0
+                                    ? @tr("{}: per la ruota e per queste impostazioni.", root.accents[root.accent].name)
+                                    : "";
+                                Swatches {
+                                    choices: root.accents;
+                                    current <=> root.accent;
+                                    selected(index) => { root.accent-picked(index); }
+                                }
+                            }
+                            Divider { }
+                            SettingRow {
+                                title: @tr("Opacità");
+                                description: root.wheel-opacity >= 100 ? @tr("La ruota è piena: non si vede cosa c'è sotto.") : @tr("Attraverso la ruota si intravede cosa c'è sotto.");
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    ValueSlider {
+                                        width: 220px;
+                                        label: @tr("Opacità della ruota");
+                                        minimum: 40;
+                                        maximum: 100;
+                                        step: 5;
+                                        value <=> root.wheel-opacity;
+                                        changed(value) => { root.general-edited(); }
+                                    }
+                                    Text {
+                                        width: 40px;
+                                        text: "\{root.wheel-opacity}%";
+                                        font-size: 14px;
+                                        font-weight: 600;
+                                        horizontal-alignment: right;
+                                        vertical-alignment: center;
+                                        color: Theme.heading;
+                                    }
+                                }
+                            }
+                            Divider { }
+                            SettingRow {
+                                title: @tr("Dimensione");
+                                description: @tr("Quanto è grande la ruota sullo schermo.");
+                                Segmented {
+                                    width: 300px;
+                                    labels: [@tr("Normale"), @tr("Grande"), @tr("Molto grande")];
+                                    current <=> root.wheel-size;
+                                    selected(index) => { root.general-edited(); }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    title: @tr("Sistema");
+                    Card {
+                        VerticalLayout {
+                            SettingRow {
+                                title: @tr("Lingua");
+                                description: @tr("Lingua di Wheelor. «Come Windows» segue la lingua del sistema: italiano se Windows è in italiano, altrimenti inglese.");
+                                Segmented {
+                                    width: 330px;
+                                    // I nomi delle lingue restano sempre nella loro lingua.
+                                    labels: [@tr("Come Windows"), "Italiano", "English"];
+                                    current <=> root.language;
+                                    selected(index) => { root.language-picked(index); }
+                                }
+                            }
+                            Divider { }
+                            SettingRow {
+                                title: @tr("Avvia con Windows");
+                                description: root.store ? @tr("Wheelor parte in background quando accedi. Si può cambiare anche da Impostazioni di Windows > App > Avvio.") : @tr("Wheelor parte in background quando accedi.");
+                                Toggle {
+                                    checked <=> root.autostart;
+                                    toggled => { root.general-edited(); }
+                                }
+                            }
+                            if !root.store: Divider { }
+                            if !root.store: SettingRow {
+                                title: @tr("Cerca aggiornamenti");
+                                description: @tr("Controlla su wheelor.app se c'è una nuova versione e te lo dice con una notifica. Non invia nessun dato.");
+                                Toggle {
+                                    checked <=> root.check-updates;
+                                    toggled => { root.general-edited(); }
+                                }
+                            }
+                            Divider { }
+                            SettingRow {
+                                title: @tr("File di configurazione");
+                                description: root.config-path;
+                                Btn {
+                                    text: @tr("Apri cartella");
+                                    glyph: "\u{E838}";
+                                    clicked => { root.open-config-folder(); }
+                                }
+                            }
+                        }
+                    }
+                    Hint { text: @tr("Il file di configurazione si può modificare anche a mano: Wheelor lo ricarica alla successiva apertura della ruota."); }
+                }
             }
 
             // ── Pagina Informazioni ──────────────────────────────────────────
@@ -1886,7 +2444,7 @@ export component SettingsWindow inherits Window {
             // "Informazioni" raggiungibile dal menu principale).
             if root.page == 3: Page {
                 horizontal-stretch: 1;
-                PageHeader { title: "Informazioni"; }
+                PageHeader { title: @tr("Informazioni"); }
                 Card {
                     HorizontalLayout {
                         padding: 20px;
@@ -1899,18 +2457,60 @@ export component SettingsWindow inherits Window {
                         VerticalLayout {
                             alignment: center;
                             spacing: 4px;
+                            horizontal-stretch: 1;
                             Text {
-                                text: "Wheelor \{root.version}";
+                                text: @tr("Wheelor {}", root.version);
                                 font-size: 17px;
                                 font-weight: 600;
                                 color: Theme.heading;
                             }
-                            Hint { text: "Azioni rapide su una ruota attorno al cursore."; }
+                            Hint { text: @tr("Azioni rapide su una ruota attorno al cursore."); }
                         }
                     }
                 }
+                if root.store: Section {
+                    title: @tr("Aggiornamenti");
+                    Card {
+                        SettingRow {
+                            title: @tr("Versione {}", root.version);
+                            description: @tr("Installata dal Microsoft Store: gli aggiornamenti arrivano da soli, come per le altre app dello Store.");
+                        }
+                    }
+                }
+                if !root.store: Section {
+                    title: @tr("Aggiornamenti");
+                    Card {
+                        SettingRow {
+                            title: root.update-version != "" ? @tr("È disponibile Wheelor {}", root.update-version) : root.update-state == 1 ? @tr("Controllo in corso…") : @tr("Versione {}", root.version);
+                            description: root.update-message;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if root.update-version != "": Btn {
+                                    text: @tr("Novità");
+                                    glyph: "\u{E8A7}";
+                                    clicked => { root.open-release-notes(); }
+                                }
+                                if root.update-version != "": Btn {
+                                    text: @tr("Aggiorna");
+                                    glyph: "\u{E896}";
+                                    tone: Tone.primary;
+                                    clicked => { root.ask-update(); }
+                                }
+                                if root.update-version == "": Btn {
+                                    text: @tr("Controlla ora");
+                                    glyph: "\u{E72C}";
+                                    enabled: root.update-state != 1;
+                                    clicked => { root.check-for-updates(); }
+                                }
+                            }
+                        }
+                    }
+                    if root.update-error: Hint {
+                        text: @tr("Puoi anche scaricare l'ultima versione da wheelor.app e installarla sopra quella attuale: ruote e azioni restano.");
+                    }
+                }
                 Hint {
-                    text: "Le icone sono quelle del font di sistema di Windows (Segoe Fluent Icons); i loro nomi vengono dalla documentazione Microsoft, con licenza CC BY 4.0.";
+                    text: @tr("Le icone sono quelle del font di sistema di Windows (Segoe Fluent Icons); i loro nomi vengono dalla documentazione Microsoft, con licenza CC BY 4.0.");
                 }
                 HorizontalLayout {
                     alignment: start;
@@ -1945,14 +2545,14 @@ export component SettingsWindow inherits Window {
                 }
                 Text {
                     horizontal-stretch: 1;
-                    text: root.status != "" ? root.status : root.dirty ? "Modifiche non salvate" : "";
+                    text: root.status != "" ? root.status : root.dirty ? @tr("Modifiche non salvate") : "";
                     font-size: 13px;
                     vertical-alignment: center;
                     overflow: elide;
                     color: root.status-error ? Theme.danger : Theme.soft;
                 }
                 Btn {
-                    text: "Salva";
+                    text: @tr("Salva");
                     glyph: "\u{E74E}";
                     tone: Tone.primary;
                     enabled: root.dirty;
@@ -1960,6 +2560,11 @@ export component SettingsWindow inherits Window {
                 }
             }
         }
+    }
+
+    // ── Registrazione dei tasti: un clic in qualunque altro punto la annulla ────
+    if root.listening != 0: TouchArea {
+        clicked => { root.stop-listening(); }
     }
 
     // ── Finestra di scelta: azione, sottomenu o app ─────────────────────────────
@@ -1976,7 +2581,7 @@ export component SettingsWindow inherits Window {
         }
         LineEdit {
             text <=> root.picker-search;
-            placeholder-text: "Cerca…";
+            placeholder-text: @tr("Cerca…");
             edited(text) => { root.picker-search-changed(text); }
             init => { self.focus(); }
         }
@@ -1989,11 +2594,11 @@ export component SettingsWindow inherits Window {
                 clicked => { root.picked(item.id); }
             }
         }
-        if root.picker-items.length == 0: Hint { text: "Niente da mostrare."; }
+        if root.picker-items.length == 0: Hint { text: @tr("Niente da mostrare."); }
         HorizontalLayout {
             alignment: end;
             Btn {
-                text: "Annulla";
+                text: @tr("Annulla");
                 clicked => { root.picker = 0; }
             }
         }
@@ -2003,20 +2608,82 @@ export component SettingsWindow inherits Window {
     if root.deleting != 0: Confirm {
         title: root.delete-title;
         text: root.delete-text;
-        note: "Diventa definitivo solo quando premi Salva.";
+        note: @tr("Diventa definitivo solo quando premi Salva.");
         glyph: "\u{E74D}";
         danger: true;
-        confirm-text: "Elimina";
+        confirm-text: @tr("Elimina");
         dismissed => { root.deleting = 0; }
         confirmed => { root.confirm-delete(); }
     }
 
+    // ── Aggiornamento: conferma, poi download e avvio dell'installazione ────────
+    if root.update-state == 2: Confirm {
+        title: @tr("Aggiornare a Wheelor {}?", root.update-version);
+        text: @tr("Scarica l'aggiornamento ({}) e lo installa: Wheelor si chiude per qualche secondo e riparte da solo. Ruote, azioni e impostazioni restano come sono.", root.update-size);
+        note: root.dirty ? @tr("Prima vengono salvate le modifiche in corso.") : "";
+        glyph: "\u{E896}";
+        confirm-text: root.dirty ? @tr("Salva e aggiorna") : @tr("Aggiorna");
+        dismissed => { root.cancel-update(); }
+        confirmed => { root.confirm-update(); }
+        Btn {
+            text: @tr("Novità");
+            glyph: "\u{E8A7}";
+            clicked => { root.open-release-notes(); }
+        }
+    }
+    if root.update-state >= 3: Dialog {
+        card-width: 420px;
+        // Non si annulla: il download è breve e l'installazione parte da sola.
+        HorizontalLayout {
+            spacing: 16px;
+            VerticalLayout {
+                alignment: start;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 20px;
+                    background: Theme.accent-soft;
+                    Glyph {
+                        text: "\u{E896}";
+                        font-size: 17px;
+                        color: Theme.accent;
+                    }
+                }
+            }
+            VerticalLayout {
+                spacing: 12px;
+                horizontal-stretch: 1;
+                Text {
+                    text: root.update-state == 3 ? @tr("Download di Wheelor {}…", root.update-version) : @tr("Avvio dell'installazione…");
+                    font-size: 17px;
+                    font-weight: 600;
+                    color: Theme.heading;
+                }
+                Rectangle {
+                    height: 6px;
+                    border-radius: 3px;
+                    background: Theme.press;
+                    Rectangle {
+                        x: 0px;
+                        width: parent.width * (root.update-state == 3 ? root.update-progress : 1);
+                        border-radius: 3px;
+                        background: Theme.accent;
+                        animate width { duration: 160ms; }
+                    }
+                }
+                Hint {
+                    text: root.update-state == 3 ? @tr("{}% di {}", round(root.update-progress * 100), root.update-size) : @tr("Wheelor si chiude e riparte aggiornato.");
+                }
+            }
+        }
+    }
+
     // ── Conferma alla chiusura con modifiche non salvate ────────────────────────
     if root.confirm-close: Confirm {
-        title: "Ci sono modifiche non salvate";
-        text: "Salvale prima di chiudere, oppure esci e lasciale perdere.";
+        title: @tr("Ci sono modifiche non salvate");
+        text: @tr("Salvale prima di chiudere, oppure esci e lasciale perdere.");
         glyph: "\u{E74E}";
-        confirm-text: "Salva ed esci";
+        confirm-text: @tr("Salva ed esci");
         dismissed => { root.confirm-close = false; }
         confirmed => {
             root.save();
@@ -2025,7 +2692,7 @@ export component SettingsWindow inherits Window {
             }
         }
         Btn {
-            text: "Esci senza salvare";
+            text: @tr("Esci senza salvare");
             tone: Tone.danger;
             clicked => { root.close-without-saving(); }
         }

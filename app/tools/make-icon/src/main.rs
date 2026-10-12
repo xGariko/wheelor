@@ -1,7 +1,8 @@
 //! Rasterizza assets/logo.svg nelle dimensioni che servono:
 //! - assets/wheelor.ico: icona dell'exe (tray, titolo, taskbar, Esplora file);
 //! - assets/logo-256.png: per la documentazione;
-//! - assets/installer/wizard-*.bmp: immagine in alto a destra dell'installer, una per scala dello schermo.
+//! - assets/installer/wizard-*.bmp: immagine in alto a destra dell'installer, una per scala dello schermo;
+//! - assets/msix/*.png: le icone del pacchetto per il Microsoft Store (installer/msix).
 
 use std::fs::File;
 use std::path::Path;
@@ -18,6 +19,14 @@ const WIZARD_SIZES: [u32; 7] = [55, 64, 83, 92, 110, 119, 138];
 /// finale), da 100% a 250%.
 const PANEL_SIZES: [(u32, u32); 7] =
     [(164, 314), (192, 386), (246, 459), (273, 556), (328, 604), (355, 700), (410, 797)];
+
+/// Icone del pacchetto MSIX: nome, misura a 100% e quanto spazio occupa il logo (il resto è
+/// margine trasparente, come nelle icone di Windows). Ognuna in più scale dello schermo.
+const MSIX_LOGOS: [(&str, u32, f32); 3] =
+    [("Square44x44Logo", 44, 0.92), ("Square150x150Logo", 150, 0.6), ("StoreLogo", 50, 0.92)];
+const MSIX_SCALES: [u32; 5] = [100, 125, 150, 200, 400];
+/// Misure fisse dell'icona piccola (barra delle applicazioni, elenco delle app, Esplora file).
+const MSIX_TARGET_SIZES: [u32; 9] = [16, 20, 24, 30, 32, 36, 40, 48, 256];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
@@ -52,8 +61,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write(installer.join(format!("panel-{width}.bmp")), bmp(&panel(&tree, width, height)))?;
     }
 
+    let msix = assets.join("msix");
+    std::fs::create_dir_all(&msix)?;
+    let mut count = 0;
+    for (name, size, fill) in MSIX_LOGOS {
+        for scale in MSIX_SCALES {
+            let pixels = (size * scale).div_ceil(100);
+            padded(&tree, pixels, fill).save_png(msix.join(format!("{name}.scale-{scale}.png")))?;
+            count += 1;
+        }
+    }
+    for size in MSIX_TARGET_SIZES {
+        let pixmap = padded(&tree, size, 0.92);
+        // "unplated": senza il riquadro colorato dietro, per la barra delle applicazioni.
+        for suffix in ["", "_altform-unplated"] {
+            pixmap.save_png(msix.join(format!("Square44x44Logo.targetsize-{size}{suffix}.png")))?;
+            count += 1;
+        }
+    }
+
     println!(
-        "Creati assets/wheelor.ico ({} dimensioni), assets/logo-256.png e {} immagini in assets/installer",
+        "Creati assets/wheelor.ico ({} dimensioni), assets/logo-256.png, {} immagini in assets/installer e {count} in assets/msix",
         ICON_SIZES.len(),
         WIZARD_SIZES.len() + PANEL_SIZES.len()
     );
@@ -83,6 +111,17 @@ fn panel(tree: &usvg::Tree, width: u32, height: u32) -> tiny_skia::Pixmap {
     let x = (width as f32 - logo) / 2.0;
     let y = height as f32 * 0.42 - logo / 2.0;
     let transform = tiny_skia::Transform::from_scale(scale, scale).post_translate(x, y);
+    resvg::render(tree, transform, &mut pixmap.as_mut());
+    pixmap
+}
+
+/// Il logo al centro di un quadrato di `size` pixel, grande `fill` volte il lato.
+fn padded(tree: &usvg::Tree, size: u32, fill: f32) -> tiny_skia::Pixmap {
+    let mut pixmap = tiny_skia::Pixmap::new(size, size).expect("dimensione valida");
+    let logo = size as f32 * fill;
+    let scale = logo / tree.size().width().max(tree.size().height());
+    let offset = (size as f32 - logo) / 2.0;
+    let transform = tiny_skia::Transform::from_scale(scale, scale).post_translate(offset, offset);
     resvg::render(tree, transform, &mut pixmap.as_mut());
     pixmap
 }

@@ -1,11 +1,14 @@
 //! Icona nella system tray e relativo menu contestuale.
 
+use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::core::{PCWSTR, Result, w};
+use windows::core::{HSTRING, PCWSTR, Result, w};
+
+use crate::{tr, trf};
 
 /// Messaggio che Windows ci invia quando l'utente interagisce con l'icona.
 pub const WM_TRAY: u32 = WM_APP + 1;
@@ -13,11 +16,32 @@ pub const WM_TRAY: u32 = WM_APP + 1;
 const ICON_ID: u32 = 1;
 const CMD_SETTINGS: usize = 1;
 const CMD_EXIT: usize = 2;
+const CMD_UPDATE: usize = 3;
 
 /// Cosa ha chiesto l'utente tramite l'icona.
 pub enum Command {
     Settings,
+    /// Installare la nuova versione (dal menu o con un clic sulla notifica).
+    Update,
     Exit,
+}
+
+thread_local! {
+    /// La nuova versione disponibile, se c'è: il menu propone di installarla.
+    static UPDATE: RefCell<Option<String>> = const { RefCell::new(None) };
+    /// L'ultima notifica mostrata annuncia un aggiornamento: cliccarla lo installa.
+    static UPDATE_BALLOON: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Ricorda la nuova versione disponibile e la annuncia con una notifica.
+pub fn offer_update(hwnd: HWND, version: &str) {
+    UPDATE.set(Some(version.to_string()));
+    notify(
+        hwnd,
+        &trf!("Wheelor {version} è disponibile", "Wheelor {version} is available"),
+        tr!("Clic qui per aggiornare: ci vogliono pochi secondi.", "Click here to update: it only takes a few seconds."),
+    );
+    UPDATE_BALLOON.set(true);
 }
 
 pub fn add(hwnd: HWND) -> Result<()> {
@@ -52,6 +76,7 @@ pub fn remove(hwnd: HWND) {
 
 /// Mostra una notifica di Windows associata all'icona, senza suono.
 pub fn notify(hwnd: HWND, title: &str, text: &str) {
+    UPDATE_BALLOON.set(false);
     let mut data = base_data(hwnd);
     data.uFlags = NIF_INFO;
     data.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
@@ -73,6 +98,7 @@ pub fn on_message(hwnd: HWND, wparam: WPARAM, lparam: LPARAM) -> Option<Command>
         }
         // Clic sinistro sull'icona: apre direttamente le impostazioni.
         NIN_SELECT => Some(Command::Settings),
+        NIN_BALLOONUSERCLICK if UPDATE_BALLOON.get() => Some(Command::Update),
         _ => None,
     }
 }
@@ -86,9 +112,14 @@ pub fn taskbar_created() -> u32 {
 fn show_menu(hwnd: HWND, x: i32, y: i32) -> Result<Option<Command>> {
     unsafe {
         let menu = CreatePopupMenu()?;
-        AppendMenuW(menu, MF_STRING, CMD_SETTINGS, w!("Impostazioni…"))?;
+        if let Some(version) = UPDATE.with_borrow(Clone::clone) {
+            let text = HSTRING::from(trf!("Aggiorna a Wheelor {version}…", "Update to Wheelor {version}…"));
+            AppendMenuW(menu, MF_STRING, CMD_UPDATE, &text)?;
+            AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null())?;
+        }
+        AppendMenuW(menu, MF_STRING, CMD_SETTINGS, &HSTRING::from(tr!("Impostazioni…", "Settings…")))?;
         AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null())?;
-        AppendMenuW(menu, MF_STRING, CMD_EXIT, w!("Esci"))?;
+        AppendMenuW(menu, MF_STRING, CMD_EXIT, &HSTRING::from(tr!("Esci", "Exit")))?;
         // La voce predefinita appare in grassetto.
         SetMenuDefaultItem(menu, CMD_SETTINGS as u32, 0)?;
 
@@ -107,6 +138,7 @@ fn show_menu(hwnd: HWND, x: i32, y: i32) -> Result<Option<Command>> {
 
         Ok(match cmd.0 as usize {
             CMD_SETTINGS => Some(Command::Settings),
+            CMD_UPDATE => Some(Command::Update),
             CMD_EXIT => Some(Command::Exit),
             _ => None,
         })
