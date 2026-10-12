@@ -1,0 +1,24 @@
+<!-- Inizio di <head>, uguale per tutte le pagine: va subito dopo <head> (il charset deve stare nei primi byte). -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#081314">
+<link rel="icon" href="{{ROOT}}logo.svg" type="image/svg+xml">
+<link rel="icon" href="{{ROOT}}logo-256.png" type="image/png" sizes="256x256">
+<link rel="apple-touch-icon" href="{{ROOT}}logo-256.png">
+<link rel="preload" href="{{ROOT}}fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ROOT}}fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ROOT}}style.css">
+{{en}}<script>
+// Prima visita da un browser in italiano: la stessa pagina in italiano. Non scatta se è stato scelto
+// l'inglese col selettore (la scelta la salva lo script in partials/footer.html) o se si arriva da
+// un'altra pagina del sito, così il selettore funziona anche con la memoria del browser bloccata.
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('wheelor-lang'); } catch (e) {}
+  if (saved === 'en' || document.referrer.indexOf(location.origin + '/') === 0) return;
+  if (saved === 'it' || /^it\b/i.test(navigator.language || '')) {
+    location.replace('it/' + location.pathname.split('/').pop() + location.hash);
+  }
+})();
+</script>{{/en}}

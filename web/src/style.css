@@ -1,4 +1,25 @@
-/* Landing page di Wheelor: tema unico scuro, come il design. */
+/* Sito di Wheelor: tema unico scuro, come il design. */
+
+/* Caratteri serviti dal sito stesso (nessuna richiesta a Google Fonts), solo l'alfabeto latino.
+   Instrument Sans, Unbounded e JetBrains Mono hanno licenza SIL Open Font License 1.1. */
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('fonts/instrument-sans.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Unbounded';
+  src: url('fonts/unbounded.woff2') format('woff2');
+  font-weight: 200 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/jetbrains-mono.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+}
 
 :root {
   --bg: #081314;
@@ -39,6 +60,19 @@ body {
 :where(a) { color: #7FE6EC; }
 :where(a:hover) { color: #B5F3F6; }
 a:focus-visible { outline: 2px solid #7FE6EC; outline-offset: 3px; }
+
+/* Testo solo per i lettori di schermo. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .accent { color: var(--accent); }
 .accent-stroke { stroke: var(--accent); }
@@ -102,6 +136,34 @@ a:focus-visible { outline: 2px solid #7FE6EC; outline-offset: 3px; }
   font-weight: 600;
 }
 .btn-ghost:hover { background-color: rgba(165, 206, 205, 0.10); }
+
+/* Selettore di lingua: la lingua attuale è evidenziata, l'altra è un link. */
+.lang {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(165, 206, 205, 0.16);
+  background: rgba(165, 206, 205, 0.05);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+.lang-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  color: var(--faint);
+  text-decoration: none;
+  transition: color .2s ease, background-color .2s ease;
+}
+a.lang-opt:hover { color: var(--heading); background-color: rgba(165, 206, 205, 0.10); }
+.lang-opt.is-current { background: var(--accent-soft); color: var(--accent); }
 
 /* ---------- Pulsante principale ---------- */
 
@@ -487,12 +549,133 @@ a:focus-visible { outline: 2px solid #7FE6EC; outline-offset: 3px; }
 
 .footer-brand { display: flex; align-items: center; gap: 10px; }
 .footer-brand img { width: 22px; height: 22px; display: block; }
-.footer-brand span {
+.footer-brand span:not(.meta) {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.02em;
   color: var(--text);
+}
+.footer-brand .meta { margin-left: 4px; }
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 28px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+.footer-link:hover { color: var(--heading); }
+
+/* "Sviluppato da" col segno di gabrieleiovino.it. */
+.credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+.credit-label { color: var(--faint); }
+.credit-mark {
+  width: 11px;
+  height: 24px;
+  flex: none;
+  fill: #F5EFE3;
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1);
+}
+.credit-mark .credit-dot { fill: #C9A27E; }
+.credit-name {
+  font-weight: 600;
+  color: var(--heading);
+  transition: color .2s ease;
+}
+.credit-name span { font-weight: 400; color: var(--soft); transition: color .2s ease; }
+.credit:hover .credit-name, .credit:hover .credit-name span { color: #FFFFFF; }
+.credit:hover .credit-mark { transform: translateY(-2px); }
+
+/* ---------- Pagine di testo (privacy) ---------- */
+
+.doc { border-top: 1px solid var(--line); }
+
+.doc-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 88px) var(--gutter) clamp(72px, 9vw, 112px);
+}
+
+.doc-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.doc-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(2rem, 3vw + 0.9rem, 3.2rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: var(--heading);
+  text-wrap: balance;
+}
+
+.doc-summary {
+  margin: 36px 0 8px;
+  padding: 24px 28px;
+  border-radius: 22px;
+  background: rgba(111, 224, 230, 0.05);
+  border: 1px solid rgba(111, 224, 230, 0.22);
+}
+.prose .doc-summary h2 { margin-top: 0; font-size: 18px; color: var(--accent); }
+
+.prose h2 {
+  margin: 52px 0 16px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--heading);
+}
+.prose p, .prose li {
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--body);
+  text-wrap: pretty;
+}
+.prose p { margin: 0 0 14px; }
+.prose ul {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prose li { padding-left: 4px; }
+.prose li::marker { color: var(--accent); }
+.prose strong { font-weight: 600; color: var(--soft); }
+.prose a { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.prose code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(165, 206, 205, 0.08);
+  font-family: var(--font-mono);
+  font-size: .88em;
+  color: var(--soft);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Animazioni d'ingresso ---------- */
@@ -529,6 +712,11 @@ a:focus-visible { outline: 2px solid #7FE6EC; outline-offset: 3px; }
 
 @media (max-width: 560px) {
   .wl-hide-sm { display: none !important; }
+}
+
+/* Sui telefoni stretti l'intestazione tiene solo marchio e lingua: il download è subito sotto. */
+@media (max-width: 440px) {
+  .wl-hide-xs { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

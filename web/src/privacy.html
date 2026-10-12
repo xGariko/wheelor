@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  Informativa sulla privacy, in inglese e in italiano (vedi web/build.ps1 per la sintassi).
+  Descrive ciò che fanno davvero app e sito: se cambia qualcosa (connessioni, file, dati), va
+  aggiornata qui insieme alla data in cima.
+-->
+<html lang="{{LANG}}">
+<head>
+{{>head}}
+<title>{{en}}Privacy policy — Wheelor{{/en}}{{it}}Informativa sulla privacy — Wheelor{{/it}}</title>
+<meta name="description" content="{{en}}What Wheelor, the app and this website, does with your data: no account, no analytics, no tracking.{{/en}}{{it}}Cosa fa Wheelor, l'app e questo sito, con i tuoi dati: niente account, statistiche o tracciamento.{{/it}}">
+{{HEAD_META}}
+</head>
+<body>
+<div class="page">
+
+{{>header}}
+
+<main class="doc">
+  <article class="doc-inner prose">
+
+{{en}}
+    <header class="doc-head">
+      <span class="eyebrow">PRIVACY</span>
+      <h1 class="doc-title">Privacy policy</h1>
+      <p class="meta">Last updated: 12 October 2026</p>
+    </header>
+
+    <p class="lead">This page explains what Wheelor, both the app and this website, does with your data. The short answer: as little as possible.</p>
+
+    <section class="doc-summary">
+      <h2>In short</h2>
+      <ul>
+        <li>Wheelor works entirely on your PC. No account, no analytics, no ads, no tracking.</li>
+        <li>Your wheels, actions and settings are saved in a file on your PC and are never sent to me or anyone else.</li>
+        <li>The only connection Wheelor makes on its own is the update check: it downloads a small public file and sends nothing about you. You can turn it off.</li>
+        <li>This website uses no cookies, no analytics and no third-party trackers.</li>
+      </ul>
+    </section>
+
+    <h2>Who I am</h2>
+    <p>Wheelor is developed by <a href="https://gabrieleiovino.it">Gabriele Iovino</a>, an independent developer based in Italy. For any question about privacy, write to <a href="mailto:gabriele.iovino7@gmail.com">gabriele.iovino7@gmail.com</a>.</p>
+
+    <h2>What Wheelor does on your PC</h2>
+    <ul>
+      <li><strong>Settings.</strong> Your wheels, actions and preferences are saved in <code>%APPDATA%\Wheelor\config.toml</code> (in the Microsoft Store version, in the private folder Windows keeps for the app). If Wheelor ever closes because of an unexpected error, it adds a short technical note, with version, time and error, to <code>crash.log</code> in the same folder. These files stay on your PC, and you can read, edit or delete them at any time.</li>
+      <li><strong>Keyboard and mouse.</strong> Wheelor waits for the shortcut you chose through the standard Windows hotkey feature. While the wheel is open, and while you record a key combination in Settings, it reads the keys and mouse movements needed to pick an action. This happens in memory and in the moment: Wheelor doesn't record what you type, and doesn't save or send any input.</li>
+      <li><strong>The app in the foreground.</strong> When you open the wheel, Wheelor checks which program is in front (its file name and window title) to show the wheel you set up for that program and, if your commands use them, to pass them on as the <code>WHEELOR_APP</code> and <code>WHEELOR_TITLE</code> variables. This information isn't saved.</li>
+      <li><strong>Your actions.</strong> You choose the programs, files and websites your actions open and the commands they run. What happens there is up to them and their own privacy policies.</li>
+    </ul>
+
+    <h2>Internet connections</h2>
+    <ul>
+      <li><strong>Update check (installer version).</strong> With “Check for updates” on, as it is by default, Wheelor downloads <code>https://wheelor.app/latest.json</code> about 20 seconds after it starts and then every 6 hours, to see whether there's a new version. The request contains no identifier and no information about you or your setup: like any connection, it only reveals your IP address and the Wheelor version number to the server hosting the file. You can turn it off in Settings &gt; General.</li>
+      <li><strong>Updates.</strong> If you choose to update, the installer is downloaded from GitHub, where Wheelor versions are published. “What's new” opens the release notes on GitHub in your browser.</li>
+      <li><strong>Microsoft Store version.</strong> It doesn't check for updates on its own: the Store takes care of downloads and updates. Microsoft may give me statistics, such as the number of installs, and reports about crashes collected by Windows according to your diagnostic data settings. Microsoft's handling of this data is covered by the <a href="https://www.microsoft.com/privacy/privacystatement">Microsoft Privacy Statement</a>.</li>
+    </ul>
+
+    <h2>This website</h2>
+    <ul>
+      <li>wheelor.app is hosted on GitHub Pages. When you visit it, GitHub receives technical data such as your IP address and may keep it in its logs for security reasons; I have no access to that data. See the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</li>
+      <li>The site uses no cookies, no analytics and no third-party trackers. Fonts and images are served by the site itself.</li>
+      <li>If you switch language, your choice is saved in your browser's local storage so your next visit opens in that language. It's never sent anywhere, and you can remove it by clearing this site's data in your browser.</li>
+      <li>The download button takes you to GitHub, where the installer is published.</li>
+    </ul>
+
+    <h2>Sharing and selling</h2>
+    <p>I don't sell, rent or share personal data, because Wheelor doesn't collect any.</p>
+
+    <h2>Children</h2>
+    <p>Wheelor doesn't collect data from anyone, children included.</p>
+
+    <h2>Your rights</h2>
+    <p>Under the GDPR you have the right to access, correct and delete your personal data, to object to its processing and to lodge a complaint with a supervisory authority, which in Italy is the <a href="https://www.garanteprivacy.it">Garante per la protezione dei dati personali</a>. Since I hold no data about you, there is normally nothing to access or delete; for data handled by GitHub or Microsoft, you can contact them directly. For any question, write to me.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the new version will be published on this page with a new date.</p>
+{{/en}}
+
+{{it}}
+    <header class="doc-head">
+      <span class="eyebrow">PRIVACY</span>
+      <h1 class="doc-title">Informativa sulla privacy</h1>
+      <p class="meta">Ultimo aggiornamento: 12 ottobre 2026</p>
+    </header>
+
+    <p class="lead">Questa pagina spiega cosa fa Wheelor, sia l'app sia questo sito, con i tuoi dati. In breve: il meno possibile.</p>
+
+    <section class="doc-summary">
+      <h2>In breve</h2>
+      <ul>
+        <li>Wheelor funziona interamente sul tuo PC. Niente account, statistiche, pubblicità o tracciamento.</li>
+        <li>Ruote, azioni e impostazioni restano in un file sul tuo PC e non vengono mai inviate a me né ad altri.</li>
+        <li>L'unica connessione che Wheelor fa da solo è il controllo degli aggiornamenti: scarica un piccolo file pubblico e non invia nulla su di te. Puoi disattivarlo.</li>
+        <li>Questo sito non usa cookie, statistiche né sistemi di tracciamento di terze parti.</li>
+      </ul>
+    </section>
+
+    <h2>Chi sono</h2>
+    <p>Wheelor è sviluppato da <a href="https://gabrieleiovino.it">Gabriele Iovino</a>, sviluppatore indipendente in Italia. Per qualsiasi domanda sulla privacy scrivi a <a href="mailto:gabriele.iovino7@gmail.com">gabriele.iovino7@gmail.com</a>.</p>
+
+    <h2>Cosa fa Wheelor sul tuo PC</h2>
+    <ul>
+      <li><strong>Impostazioni.</strong> Ruote, azioni e preferenze sono salvate in <code>%APPDATA%\Wheelor\config.toml</code> (nella versione del Microsoft Store, nella cartella privata che Windows tiene per l'app). Se Wheelor si chiude per un errore imprevisto, aggiunge una breve nota tecnica, con versione, ora ed errore, a <code>crash.log</code> nella stessa cartella. Questi file restano sul tuo PC e puoi leggerli, modificarli o eliminarli quando vuoi.</li>
+      <li><strong>Tastiera e mouse.</strong> Wheelor attende la scorciatoia che hai scelto tramite la funzione standard di Windows per le scorciatoie globali. Mentre la ruota è aperta, e mentre registri una combinazione di tasti nelle impostazioni, legge i tasti e i movimenti del mouse che servono a scegliere un'azione. Succede in memoria e sul momento: Wheelor non registra ciò che scrivi e non salva né invia nessun input.</li>
+      <li><strong>L'app in primo piano.</strong> Quando apri la ruota, Wheelor guarda quale programma è in primo piano (nome del file e titolo della finestra) per mostrarti la ruota che hai preparato per quel programma e, se i tuoi comandi li usano, per passarli nelle variabili <code>WHEELOR_APP</code> e <code>WHEELOR_TITLE</code>. Queste informazioni non vengono salvate.</li>
+      <li><strong>Le tue azioni.</strong> Programmi, file e siti aperti dalle tue azioni, e i comandi che eseguono, li scegli tu. Quello che succede lì dipende da loro e dalle loro informative.</li>
+    </ul>
+
+    <h2>Connessioni a internet</h2>
+    <ul>
+      <li><strong>Controllo degli aggiornamenti (versione con installer).</strong> Con «Cerca aggiornamenti» attivo, come è di serie, Wheelor scarica <code>https://wheelor.app/latest.json</code> circa 20 secondi dopo l'avvio e poi ogni 6 ore, per sapere se c'è una nuova versione. La richiesta non contiene identificativi né informazioni su di te o sulla tua configurazione: come ogni connessione, rivela soltanto il tuo indirizzo IP e il numero di versione di Wheelor al server che ospita il file. Puoi disattivarlo in Impostazioni &gt; Generale.</li>
+      <li><strong>Aggiornamenti.</strong> Se scegli di aggiornare, l'installer viene scaricato da GitHub, dove sono pubblicate le versioni di Wheelor. «Novità» apre le note di rilascio su GitHub nel browser.</li>
+      <li><strong>Versione del Microsoft Store.</strong> Non controlla gli aggiornamenti da sola: download e aggiornamenti li gestisce lo Store. Microsoft può fornirmi statistiche, come il numero di installazioni, e rapporti sugli arresti anomali raccolti da Windows secondo le tue impostazioni dei dati di diagnostica. Il trattamento di questi dati da parte di Microsoft è descritto nell'<a href="https://www.microsoft.com/it-it/privacy/privacystatement">Informativa sulla privacy di Microsoft</a>.</li>
+    </ul>
+
+    <h2>Questo sito</h2>
+    <ul>
+      <li>wheelor.app è ospitato su GitHub Pages. Quando lo visiti, GitHub riceve dati tecnici come il tuo indirizzo IP e può conservarli nei suoi log per motivi di sicurezza; io non ho accesso a questi dati. Vedi l'<a href="https://docs.github.com/it/site-policy/privacy-policies/github-general-privacy-statement">Informativa sulla privacy di GitHub</a>.</li>
+      <li>Il sito non usa cookie, statistiche né sistemi di tracciamento di terze parti. Caratteri e immagini arrivano dal sito stesso.</li>
+      <li>Se cambi lingua, la scelta viene salvata nella memoria locale del browser, così la visita successiva si apre nella stessa lingua. Non viene inviata da nessuna parte e puoi cancellarla eliminando i dati di questo sito dal browser.</li>
+      <li>Il pulsante di download porta su GitHub, dove è pubblicato l'installer.</li>
+    </ul>
+
+    <h2>Condivisione e vendita</h2>
+    <p>Non vendo, non affitto e non condivido dati personali, perché Wheelor non ne raccoglie.</p>
+
+    <h2>Minori</h2>
+    <p>Wheelor non raccoglie dati di nessuno, minori compresi.</p>
+
+    <h2>I tuoi diritti</h2>
+    <p>In base al GDPR hai il diritto di accedere ai tuoi dati personali, di correggerli e cancellarli, di opporti al loro trattamento e di presentare reclamo a un'autorità di controllo, che in Italia è il <a href="https://www.garanteprivacy.it">Garante per la protezione dei dati personali</a>. Poiché non conservo dati su di te, di norma non c'è nulla da consultare o cancellare; per i dati trattati da GitHub o Microsoft puoi rivolgerti direttamente a loro. Per qualsiasi domanda, scrivimi.</p>
+
+    <h2>Modifiche</h2>
+    <p>Se questa informativa cambia, la nuova versione viene pubblicata in questa pagina con la nuova data.</p>
+{{/it}}
+
+  </article>
+</main>
+
+{{>footer}}
+
+</div>
+</body>
+</html>

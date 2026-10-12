@@ -1,0 +1,26 @@
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="{{ROOT}}logo.svg" alt="" width="22" height="22">
+      <span>Wheelor</span>
+      <span class="meta">© {{YEAR}}</span>
+    </div>
+    <div class="footer-links">
+      <a href="privacy.html" class="footer-link">{{en}}Privacy policy{{/en}}{{it}}Informativa privacy{{/it}}</a>
+      <a href="https://gabrieleiovino.it" class="credit" rel="author">
+        <span class="credit-label">{{en}}Developed by{{/en}}{{it}}Sviluppato da{{/it}}</span>
+        <!-- Il segno di gabrieleiovino.it: la "g" prende il colore del testo, il punto resta color tabacco. -->
+        <svg class="credit-mark" viewBox="0 0 65 138" aria-hidden="true"><path d="M65 60.0607C65 78.1117 50.4493 92.7449 32.5 92.7449C14.5507 92.7449 0 78.1117 0 60.0607C0 42.0097 14.5507 27.3765 32.5 27.3765C50.4493 27.3765 65 42.0097 65 60.0607ZM14.5248 60.0607C14.5248 70.0444 22.5726 78.1378 32.5 78.1378C42.4274 78.1378 50.4752 70.0444 50.4752 60.0607C50.4752 50.077 42.4274 41.9837 32.5 41.9837C22.5726 41.9837 14.5248 50.077 14.5248 60.0607Z"/><path d="M63.8889 105.595C64.5025 105.595 65.002 106.096 64.9807 106.712C64.8466 110.587 64.0163 114.409 62.5261 117.996C60.8928 121.927 58.4989 125.5 55.481 128.509C52.4631 131.518 48.8803 133.905 44.9372 135.533C40.9941 137.162 36.768 138 32.5 138C28.232 138 24.0059 137.162 20.0628 135.533C16.1197 133.905 12.5369 131.518 9.51903 128.509C6.50112 125.5 4.10719 121.927 2.47391 117.996C0.983711 114.409 0.153361 110.587 0.0193199 106.712C-0.00201796 106.096 0.497461 105.595 1.11111 105.595H13.4137C14.0273 105.595 14.5212 106.096 14.5597 106.712C14.6832 108.684 15.1329 110.624 15.8931 112.454C16.7964 114.628 18.1205 116.604 19.7896 118.268C21.4588 119.933 23.4403 121.253 25.6212 122.153C27.802 123.054 30.1395 123.518 32.5 123.518C34.8605 123.518 37.198 123.054 39.3788 122.153C41.5597 121.253 43.5412 119.933 45.2104 118.268C46.8795 116.604 48.2036 114.628 49.1069 112.454C49.8671 110.624 50.3168 108.684 50.4403 106.712C50.4788 106.096 50.9727 105.595 51.5863 105.595H63.8889Z"/><path d="M50.5556 28.4939C50.5556 27.8768 51.053 27.3765 51.6667 27.3765H63.8889C64.5025 27.3765 65 27.8768 65 28.4939V91.6275C65 92.2447 64.5025 92.7449 63.8889 92.7449H51.6667C51.053 92.7449 50.5556 92.2447 50.5556 91.6275V28.4939Z"/><path class="credit-dot" d="M65 7.26316C65 11.2745 61.7665 14.5263 57.7778 14.5263C53.7891 14.5263 50.5556 11.2745 50.5556 7.26316C50.5556 3.25183 53.7891 0 57.7778 0C61.7665 0 65 3.25183 65 7.26316Z"/></svg>
+        <span class="credit-name">Gabriele <span>Iovino</span></span>
+      </a>
+    </div>
+  </div>
+</footer>
+<script>
+// Il selettore di lingua ricorda la scelta: la legge lo script in partials/head.html.
+document.querySelectorAll('a[data-lang]').forEach(function (link) {
+  link.addEventListener('click', function () {
+    try { localStorage.setItem('wheelor-lang', link.getAttribute('data-lang')); } catch (e) {}
+  });
+});
+</script>
