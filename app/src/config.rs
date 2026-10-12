@@ -28,6 +28,10 @@ pub struct Config {
     /// Combinazione che apre la ruota, es. "Ctrl+Alt+W".
     #[serde(default = "default_hotkey")]
     pub hotkey: String,
+    /// Dimensione della ruota sullo schermo. Prima delle tabelle: in TOML i valori semplici
+    /// vanno scritti prima di `[[action]]` e `[[wheel]]`.
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub size: WheelSize,
     #[serde(rename = "action", default)]
     pub actions: Vec<Item>,
     #[serde(rename = "wheel", default)]
@@ -75,6 +79,27 @@ pub enum Action {
     Keys { keys: String },
     /// Scrive un testo nell'app in primo piano.
     Text { text: String },
+}
+
+/// Dimensione della ruota: la misura normale, ingrandita del 15% o del 30%.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WheelSize {
+    #[default]
+    Normal,
+    Large,
+    Huge,
+}
+
+impl WheelSize {
+    /// Fattore di ingrandimento rispetto alla misura normale.
+    pub fn zoom(self) -> f32 {
+        match self {
+            WheelSize::Normal => 1.0,
+            WheelSize::Large => 1.15,
+            WheelSize::Huge => 1.3,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
@@ -149,6 +174,11 @@ fn default_hotkey() -> String {
 
 fn is_false(value: &bool) -> bool {
     !value
+}
+
+/// Il valore è quello predefinito: inutile scriverlo nel file.
+fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
 }
 
 impl Wheel {
@@ -233,7 +263,7 @@ impl Default for Config {
         media.slots =
             ["play-pausa", "brano-successivo", "volume-su", "muto", "volume-giu", "brano-precedente"].map(action).to_vec();
 
-        Self { hotkey: default_hotkey(), actions, wheels: vec![main, media] }
+        Self { hotkey: default_hotkey(), size: WheelSize::default(), actions, wheels: vec![main, media] }
     }
 }
 
@@ -432,7 +462,7 @@ fn migrate(hotkey: String, slices: Vec<LegacySlice>) -> Config {
     }
     let mut main = Wheel::new(MAIN_WHEEL, "Principale");
     main.slots = actions.iter().take(MAX_SLOTS).map(|a| Slot::Action(a.id.clone())).collect();
-    Config { hotkey, actions, wheels: vec![main] }
+    Config { hotkey, size: WheelSize::default(), actions, wheels: vec![main] }
 }
 
 /// Salva in modo atomico: scrive un file temporaneo e poi lo sostituisce all'originale,
@@ -451,6 +481,17 @@ pub fn save(config: &Config) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wheel_size_survives_a_round_trip() {
+        // Predefinita: non compare nel file. Diversa: compare e si rilegge uguale.
+        let config = Config::default();
+        assert!(!toml::to_string_pretty(&config).unwrap().contains("size"));
+        let config = Config { size: WheelSize::Large, ..Config::default() };
+        let text = toml::to_string_pretty(&config).unwrap();
+        assert!(text.contains("size = \"large\""));
+        assert_eq!(toml::from_str::<Config>(&text).unwrap(), config);
+    }
 
     #[test]
     fn default_config_survives_a_round_trip() {

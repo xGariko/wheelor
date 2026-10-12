@@ -29,6 +29,8 @@ pub const WM_WHEEL_KEY_DOWN: u32 = WM_APP + 6;
 pub const WM_WHEEL_PICK: u32 = WM_APP + 7;
 /// Backspace o clic con un tasto diverso dal sinistro: tornare alla ruota precedente.
 pub const WM_WHEEL_BACK: u32 = WM_APP + 8;
+/// Spazio: scegliere lo spicchio puntato, come con il clic.
+pub const WM_WHEEL_CONFIRM: u32 = WM_APP + 9;
 
 /// Tasto virtuale non assegnato, usato per "mascherare" Alt (vedi `send_mask_key`).
 const VK_MASK: VIRTUAL_KEY = VIRTUAL_KEY(0xE8);
@@ -40,6 +42,8 @@ thread_local! {
     static KEYBOARD_HOOK: Cell<Option<HHOOK>> = const { Cell::new(None) };
     // Il tasto della hotkey è giù? Serve a distinguere una nuova pressione dall'autorepeat.
     static KEY_HELD: Cell<bool> = const { Cell::new(false) };
+    // Lo stesso per lo Spazio: tenendolo premuto non deve scegliere anche nel sottomenu che apre.
+    static SPACE_HELD: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Inizia a catturare l'input; i messaggi andranno a `target`.
@@ -49,6 +53,7 @@ pub fn start(target: HWND) -> Result<()> {
     TARGET.set(target);
     // La ruota si apre proprio mentre il tasto della hotkey è premuto.
     KEY_HELD.set(true);
+    SPACE_HELD.set(false);
     send_mask_key();
     unsafe {
         let instance = Some(GetModuleHandleW(None)?.into());
@@ -149,6 +154,14 @@ fn handle_key(vk: VIRTUAL_KEY, down: bool) -> bool {
             post(WM_WHEEL_KEY_UP, 0, 0);
         }
         KEY_HELD.set(down);
+        return true;
+    }
+    // Dopo la hotkey: se la hotkey usa lo Spazio (es. Win+Shift+Space), conta come hotkey.
+    if vk == VK_SPACE {
+        if down && !SPACE_HELD.get() {
+            post(WM_WHEEL_CONFIRM, 0, 0);
+        }
+        SPACE_HELD.set(down);
         return true;
     }
     if let Some(index) = digit_index(vk) {

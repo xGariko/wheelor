@@ -22,7 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::{BOOL, PCWSTR, w};
 
 use crate::actions::{self, Context};
-use crate::config::{self, Action, Config, Item, MAIN_WHEEL, MAX_SLOTS, Slot, Wheel};
+use crate::config::{self, Action, Config, Item, MAIN_WHEEL, MAX_SLOTS, Slot, Wheel, WheelSize};
 use crate::{MAIN_CLASS, WM_RELOAD_CONFIG, autostart, icons, keys, overlay};
 
 const TITLE: PCWSTR = w!("Wheelor – Impostazioni");
@@ -35,6 +35,10 @@ const PICK_APP: i32 = 3;
 // Per chi è aperto il selettore delle icone (proprietà `picking-icon`).
 const ICON_FOR_ACTION: i32 = 1;
 const ICON_FOR_WHEEL: i32 = 2;
+
+// Cosa chiede di eliminare la finestra di conferma (proprietà `deleting`).
+const DELETE_WHEEL: i32 = 1;
+const DELETE_ACTION: i32 = 2;
 
 pub fn run() {
     // Una sola finestra delle impostazioni: se è già aperta, la portiamo in primo piano.
@@ -74,14 +78,23 @@ struct App {
 }
 
 fn show() -> Result<(), slint::PlatformError> {
-    let ui = SettingsWindow::new()?;
-
     // Se il file ha errori partiamo dai valori predefiniti, avvisando che il salvataggio lo sostituirà.
     let (config, load_error) = match config::load() {
         Ok(config) => (config, None),
         Err(e) => (Config::default(), Some(e)),
     };
+    let (ui, app) = build(config)?;
+    if let Some(error) = load_error {
+        set_status(&ui, &format!("{error} — salvando, il file verrà sostituito."), true);
+    }
+    connect(&ui, &app);
+    set_icon_when_ready(ui.as_weak(), 50);
+    ui.run()
+}
 
+/// Crea la finestra e la riempie con `config`.
+fn build(config: Config) -> Result<(SettingsWindow, Rc<App>), slint::PlatformError> {
+    let ui = SettingsWindow::new()?;
     let app = Rc::new(App {
         ui: ui.as_weak(),
         config: RefCell::new(config),
@@ -100,6 +113,11 @@ fn show() -> Result<(), slint::PlatformError> {
     ui.set_config_path(config::path().display().to_string().into());
     ui.set_version(env!("CARGO_PKG_VERSION").into());
     ui.set_hotkey(app.config.borrow().hotkey.as_str().into());
+    ui.set_wheel_size(match app.config.borrow().size {
+        WheelSize::Normal => 0,
+        WheelSize::Large => 1,
+        WheelSize::Huge => 2,
+    });
     ui.set_autostart(autostart::is_enabled());
     set_icons(&ui, "");
 
@@ -110,13 +128,7 @@ fn show() -> Result<(), slint::PlatformError> {
     if let Some(id) = first {
         app.select_action(&id);
     }
-    if let Some(error) = load_error {
-        set_status(&ui, &format!("{error} — salvando, il file verrà sostituito."), true);
-    }
-
-    connect(&ui, &app);
-    set_icon_when_ready(ui.as_weak(), 50);
-    ui.run()
+    Ok((ui, app))
 }
 
 /// Collega ogni callback dell'interfaccia al metodo di `App` che la gestisce.
@@ -138,7 +150,6 @@ fn connect(ui: &SettingsWindow, app: &Rc<App>) {
     // Ruote.
     on!(on_select_wheel, |app, id| app.select_wheel(&id));
     on!(on_new_wheel, |app| app.new_wheel());
-    on!(on_delete_wheel, |app| app.delete_wheel());
     on!(on_wheel_edited, |app| app.wheel_edited());
     on!(on_preview_clicked, |app, x, y| app.preview_clicked(x, y));
     on!(on_select_slot, |app, index| app.ui().set_current_slot(index));
@@ -153,11 +164,14 @@ fn connect(ui: &SettingsWindow, app: &Rc<App>) {
     on!(on_select_action, |app, id| app.select_action(&id));
     on!(on_new_action, |app| app.new_action());
     on!(on_duplicate_action, |app| app.duplicate_action());
-    on!(on_delete_action, |app| app.delete_action());
     on!(on_action_edited, |app| app.action_edited());
     on!(on_search_actions, |app, _text| app.refresh_actions());
     on!(on_browse, |app| app.browse());
     on!(on_test, |app| app.test());
+
+    // Eliminazioni: prima la conferma, poi il lavoro vero.
+    on!(on_ask_delete, |app, what| app.ask_delete(what));
+    on!(on_confirm_delete, |app| app.confirm_delete());
 
     // Icone, pagina Generale e salvataggio.
     on!(on_search_icons, |app, query| set_icons(&app.ui(), &query));
@@ -265,6 +279,57 @@ impl App {
         self.mark_dirty();
     }
 
+    /// Apre la finestra di conferma, spiegando cosa sparirà insieme a ciò che si elimina.
+    fn ask_delete(&self, what: i32) {
+        let ui = self.ui();
+        let (title, text) = {
+            let config = self.config.borrow();
+            match what {
+                DELETE_WHEEL => {
+                    let Some(wheel) = config.wheel(&self.current_wheel()) else { return };
+                    if wheel.is_main() {
+                        return;
+                    }
+                    let parents = rows::parents(&config, wheel);
+                    let mut text = match parents.is_empty() {
+                        true => String::new(),
+                        false => format!("Sparisce anche da: {}. ", parents.join(", ")),
+                    };
+                    text += match wheel.slots.is_empty() {
+                        true => "Non contiene elementi.",
+                        false => "Le azioni che contiene restano nella libreria.",
+                    };
+                    (format!("Eliminare la ruota «{}»?", wheel.name), text)
+                }
+                DELETE_ACTION => {
+                    let Some(item) = config.action(&ui.get_current_action()) else { return };
+                    let wheels = rows::containing(&config, &Slot::Action(item.id.clone()));
+                    let text = if wheels.is_empty() {
+                        "Non è in nessuna ruota.".to_string()
+                    } else {
+                        format!("Viene tolta anche dalle ruote: {}.", wheels.join(", "))
+                    };
+                    (format!("Eliminare l'azione «{}»?", item.label), text)
+                }
+                _ => return,
+            }
+        };
+        ui.set_delete_title(title.into());
+        ui.set_delete_text(text.into());
+        ui.set_deleting(what);
+    }
+
+    fn confirm_delete(&self) {
+        let ui = self.ui();
+        let what = ui.get_deleting();
+        ui.set_deleting(0);
+        match what {
+            DELETE_WHEEL => self.delete_wheel(),
+            DELETE_ACTION => self.delete_action(),
+            _ => {}
+        }
+    }
+
     fn delete_wheel(&self) {
         let id = self.current_wheel();
         if id == MAIN_WHEEL {
@@ -287,7 +352,7 @@ impl App {
     /// Clic sull'anteprima: lo stesso calcolo della ruota vera (zona morta nel mozzo).
     fn preview_clicked(&self, x: f32, y: f32) {
         let count = self.slots.row_count();
-        let index = if count == 0 || x.hypot(y) < 46.0 { -1 } else { overlay::slice_at(y.atan2(x), count) as i32 };
+        let index = if count == 0 || x.hypot(y) < overlay::DEAD_ZONE { -1 } else { overlay::slice_at(y.atan2(x), count) as i32 };
         self.ui().set_current_slot(index);
     }
 
@@ -581,6 +646,11 @@ impl App {
 
         let mut config = self.config.borrow_mut();
         config.hotkey = hotkey;
+        config.size = match ui.get_wheel_size() {
+            1 => WheelSize::Large,
+            2 => WheelSize::Huge,
+            _ => WheelSize::Normal,
+        };
         for item in &config.actions {
             if let Action::Keys { keys } = &item.action {
                 keys::parse(keys).map_err(|e| format!("{}: {e}", item.label))?;
@@ -736,5 +806,56 @@ fn pick_file() -> Option<String> {
         let text = path.to_string().ok();
         CoTaskMemFree(Some(path.0 as *const _));
         text
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Quanto costa disegnare la finestra: la ridisegna tutta più volte, come durante lo scorrimento,
+    /// per ogni pagina, e stampa i millisecondi per fotogramma.
+    /// `cargo test render_speed -- --ignored --nocapture` (aggiungere `--release` per la versione ottimizzata).
+    #[test]
+    #[ignore = "misura i tempi, non controlla nulla"]
+    fn render_speed() {
+        use slint::platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor, RepaintBufferType};
+        use slint::platform::{Platform, WindowAdapter, WindowEvent};
+
+        // Una piattaforma finta: la finestra disegna in memoria invece che sullo schermo.
+        struct Offscreen(Rc<MinimalSoftwareWindow>);
+        impl Platform for Offscreen {
+            fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, slint::PlatformError> {
+                Ok(self.0.clone())
+            }
+        }
+
+        let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
+        slint::platform::set_platform(Box::new(Offscreen(window.clone()))).unwrap();
+        let (ui, _app) = build(Config::default()).unwrap();
+        // 1120×780 al 125%, come la finestra vera su uno schermo comune.
+        let (width, height) = (1400, 975);
+        window.dispatch_event(WindowEvent::ScaleFactorChanged { scale_factor: 1.25 });
+        window.set_size(slint::PhysicalSize::new(width, height));
+        ui.show().unwrap();
+        let mut buffer = vec![PremultipliedRgbaColor::default(); (width * height) as usize];
+
+        for (page, name) in [(0, "Ruote"), (1, "Libreria"), (2, "Generale")] {
+            ui.set_page(page);
+            ui.set_current_slot(if page == 0 { 1 } else { -1 });
+            // Lascia finire le animazioni, poi misura solo il disegno.
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            slint::platform::update_timers_and_animations();
+            let frames = 20;
+            let start = std::time::Instant::now();
+            for _ in 0..frames {
+                window.request_redraw();
+                window.draw_if_needed(|renderer| {
+                    renderer.render(&mut buffer, width as usize);
+                });
+            }
+            let ms = start.elapsed().as_secs_f64() * 1000.0 / frames as f64;
+            println!("{name:>9}: {ms:.1} ms per fotogramma");
+        }
     }
 }

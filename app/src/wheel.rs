@@ -12,7 +12,7 @@ use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, KillTimer, SetTimer}
 
 use crate::actions::{self, Context};
 use crate::config::{Action, Config, Slot};
-use crate::overlay::{self, Hub, SliceView};
+use crate::overlay::{self, Entrance, Hub, SliceView};
 use crate::{icons, input, tray};
 
 /// Id del timer che apre un sottomenu quando ci si ferma sopra tenendo premuta la hotkey.
@@ -52,6 +52,7 @@ thread_local! {
 
 /// Imposta la configurazione da usare alla prossima apertura.
 pub fn set_config(config: Config) {
+    overlay::set_zoom(config.size.zoom());
     CONFIG.set(Some(config));
 }
 
@@ -74,15 +75,21 @@ pub fn open(hwnd: HWND) -> Result<(), String> {
     context.profile = name;
     CONTEXT.set(context);
     STACK.set(vec![id]);
-    show_top()?;
+    show_top(Entrance::Open)?;
     input::start(hwnd).map_err(|e| e.message())?;
     MODE.set(Mode::Holding);
     Ok(())
 }
 
+/// Chiude la ruota senza fare nulla: sfuma in un attimo.
 pub fn close() {
+    stop();
+    overlay::dismiss();
+}
+
+/// Smette di catturare l'input e dimentica le ruote aperte (la ruota resta da nascondere).
+fn stop() {
     input::stop();
-    overlay::hide();
     MODE.set(Mode::Closed);
     STACK.take();
     DWELL.set(None);
@@ -106,6 +113,12 @@ pub fn on_input(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) {
             None => back(hwnd), // clic sul mozzo
         },
         input::WM_WHEEL_BACK => back(hwnd),
+        // Spazio: come il clic, ma nel mozzo non fa nulla (niente "indietro" per sbaglio).
+        input::WM_WHEEL_CONFIRM => {
+            if let Some(index) = overlay::hovered() {
+                choose(hwnd, index);
+            }
+        }
         input::WM_WHEEL_CANCEL => close(),
         input::WM_WHEEL_KEY_UP if MODE.get() == Mode::Holding => {
             // Da qui in poi si sceglie con il clic, anche se il rilascio apre un sottomenu.
@@ -136,7 +149,7 @@ fn choose(hwnd: HWND, index: usize) {
     match target {
         Target::Submenu(id) => {
             STACK.with_borrow_mut(|stack| stack.push(id));
-            refresh(hwnd);
+            refresh(hwnd, Entrance::Open);
         }
         Target::Run { label, action } => execute(hwnd, label, action),
     }
@@ -146,21 +159,21 @@ fn choose(hwnd: HWND, index: usize) {
 fn back(hwnd: HWND) {
     let popped = STACK.with_borrow_mut(|stack| stack.len() > 1 && stack.pop().is_some());
     if popped {
-        refresh(hwnd);
+        refresh(hwnd, Entrance::Back);
     } else {
         close();
     }
 }
 
 /// Mostra la ruota in cima alla pila, centrata dove si trova ora il cursore.
-fn refresh(hwnd: HWND) {
-    if let Err(e) = show_top() {
+fn refresh(hwnd: HWND, entrance: Entrance) {
+    if let Err(e) = show_top(entrance) {
         close();
         tray::notify(hwnd, "Impossibile aprire la ruota", &e);
     }
 }
 
-fn show_top() -> Result<(), String> {
+fn show_top(entrance: Entrance) -> Result<(), String> {
     let depth = STACK.with_borrow(Vec::len);
     let Some(id) = STACK.with_borrow(|stack| stack.last().cloned()) else { return Ok(()) };
 
@@ -201,7 +214,7 @@ fn show_top() -> Result<(), String> {
 
     let mut cursor = POINT::default();
     unsafe { GetCursorPos(&mut cursor) }.map_err(|e| e.message())?;
-    overlay::show(cursor).map_err(|e| e.message())
+    overlay::show(cursor, entrance).map_err(|e| e.message())
 }
 
 /// Tenendo premuta la hotkey, fermarsi su un sottomenu lo apre dopo DWELL_MS:
@@ -222,7 +235,9 @@ fn update_dwell(hwnd: HWND) {
 }
 
 fn execute(hwnd: HWND, label: String, action: Action) {
-    close();
+    // Niente dissolvenza: l'azione non deve trovarsi la ruota davanti (per esempio uno screenshot).
+    stop();
+    overlay::hide();
     // Un HWND contiene un puntatore e Rust non lo lascia passare tra thread:
     // ne passiamo il valore numerico e lo ricostruiamo dall'altra parte.
     let target = hwnd.0 as usize;

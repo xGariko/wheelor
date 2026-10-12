@@ -54,9 +54,13 @@ fn wheel_role(config: &Config, wheel: &Wheel) -> String {
 }
 
 /// Nomi delle ruote che contengono `wheel` come sottomenu.
-fn parents<'a>(config: &'a Config, wheel: &Wheel) -> Vec<&'a str> {
-    let slot = Slot::Wheel(wheel.id.clone());
-    config.wheels.iter().filter(|w| w.slots.contains(&slot)).map(|w| w.name.as_str()).collect()
+pub fn parents<'a>(config: &'a Config, wheel: &Wheel) -> Vec<&'a str> {
+    containing(config, &Slot::Wheel(wheel.id.clone()))
+}
+
+/// Nomi delle ruote che contengono `slot`.
+pub fn containing<'a>(config: &'a Config, slot: &Slot) -> Vec<&'a str> {
+    config.wheels.iter().filter(|w| w.slots.contains(slot)).map(|w| w.name.as_str()).collect()
 }
 
 /// Suggerimento sotto i campi della ruota: spiega quando si apre.
@@ -82,21 +86,27 @@ pub fn slot_rows(config: &Config, wheel: &Wheel) -> Vec<SlotRow> {
             Slot::Action(id) => config.action(id).map(|item| SlotRow {
                 label: item.label.as_str().into(),
                 glyph: icons::glyph(&item.icon).into(),
+                initial: initial(&item.label),
                 submenu: false,
             }),
             Slot::Wheel(id) => config.wheel(id).map(|sub| SlotRow {
                 label: sub.name.as_str().into(),
                 glyph: wheel_glyph(sub),
+                initial: initial(&sub.name),
                 submenu: true,
             }),
         })
         .collect()
 }
 
+/// Prima lettera, maiuscola: sulla ruota prende il posto dell'icona mancante.
+fn initial(label: &str) -> SharedString {
+    label.chars().take(1).flat_map(char::to_uppercase).collect::<String>().into()
+}
+
 /// Dove è usata un'azione, da mostrare sotto l'etichetta.
 pub fn usage(config: &Config, id: &str) -> String {
-    let slot = Slot::Action(id.to_string());
-    let names: Vec<&str> = config.wheels.iter().filter(|w| w.slots.contains(&slot)).map(|w| w.name.as_str()).collect();
+    let names = containing(config, &Slot::Action(id.to_string()));
     if names.is_empty() {
         "Non è in nessuna ruota: aggiungila dalla pagina di una ruota.".into()
     } else {

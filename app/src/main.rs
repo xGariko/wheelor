@@ -162,7 +162,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
             }
             LRESULT(0)
         }
-        input::WM_WHEEL_MOVE..=input::WM_WHEEL_BACK => {
+        input::WM_WHEEL_MOVE..=input::WM_WHEEL_CONFIRM => {
             wheel::on_input(hwnd, msg, wparam, lparam);
             LRESULT(0)
         }
