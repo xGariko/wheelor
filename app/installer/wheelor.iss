@@ -16,6 +16,12 @@
 ; Identifica l'app per aggiornamenti e disinstallazione: non va mai cambiato.
 #define AppGuid "A65392FC-AA5F-46D3-85A3-EBDAAD9B033C"
 #define SettingsTitle "Wheelor – Impostazioni"
+; VersionInfoVersion accetta solo numeri: per 0.2.0-beta.1 usa 0.2.0.
+#if Pos("-", AppVersion) > 0
+  #define NumericVersion Copy(AppVersion, 1, Pos("-", AppVersion) - 1)
+#else
+  #define NumericVersion AppVersion
+#endif
 
 [Setup]
 AppId={{{#AppGuid}}
@@ -27,7 +33,8 @@ AppPublisher={#AppPublisher}
 AppPublisherURL=https://wheelor.app
 AppSupportURL=https://github.com/xGariko/wheelor/issues
 AppUpdatesURL=https://wheelor.app
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#NumericVersion}
+VersionInfoProductTextVersion={#AppVersion}
 VersionInfoProductName={#AppName}
 VersionInfoDescription={#AppName} Setup
 

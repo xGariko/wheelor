@@ -2,7 +2,8 @@
 #
 # Parte da solo quando cambia web/ sul ramo main e dopo ogni release (lo lancia release.yml);
 # si può anche lanciare a mano da Actions > Sito > Run workflow.
-# Versione, peso e link dell'installer arrivano dal latest.json dell'ultima release.
+# Versione, peso e link dell'installer arrivano dal latest.json dell'ultima release stabile
+# (o dell'ultima pre-release, finché non esce la prima versione stabile).
 name: Sito
 
 on:
@@ -24,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # L'ultima versione stabile; finché non ce n'è una, l'ultima pre-release (es. la prima beta).
       # Senza release non c'è niente da scaricare: il sito non viene pubblicato (senza errori).
       - name: Scarica latest.json dall'ultima release
         id: release
@@ -31,6 +33,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release download --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir release; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          elif tag=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // empty') \
+              && [ -n "$tag" ] \
+              && gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir release; then
+            echo "::notice::Nessuna versione stabile: il sito usa la pre-release $tag"
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::Nessuna release con latest.json: il sito verrà pubblicato con la prima versione (vedi release.yml)"

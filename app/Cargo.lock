@@ -4778,7 +4778,7 @@ dependencies = [
 
 [[package]]
 name = "wheelor"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 dependencies = [
  "raw-window-handle",
  "serde",

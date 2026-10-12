@@ -1,6 +1,6 @@
 [package]
 name = "wheelor"
-version = "0.1.0"
+version = "0.1.0-beta.1"
 edition = "2024"
 description = "Azioni rapide su una ruota attorno al cursore, per Windows"
 publish = false

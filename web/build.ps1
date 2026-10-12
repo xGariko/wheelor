@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Copia web\src in web\dist e riempie i segnaposto delle pagine HTML ({{VERSION}}, {{SIZE}},
-  {{DOWNLOAD_URL}}, {{YEAR}}, {{HEAD_META}}) con i dati di latest.json, che scrive
+  {{DOWNLOAD_URL}}, {{BETA_TAG}}, {{YEAR}}, {{HEAD_META}}) con i dati di latest.json, che scrive
   app\installer\build.ps1 e che viene allegato a ogni release. Copia nel sito anche latest.json,
   così l'ultima versione si legge sempre allo stesso indirizzo.
   Funziona con Windows PowerShell 5.1 e con PowerShell 7 (anche su Linux, nella GitHub Action).
@@ -40,6 +40,8 @@ $installer = $info.installer
 # Punto come separatore decimale anche su un Windows in italiano: la pagina è in inglese.
 $size = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:0.0} MB', $installer.size / 1MB)
 $isPublic = $installer.url -match '^https?://'
+# Versione con trattino (0.2.0-beta.1): pre-release, la pagina mostra l'etichetta Beta.
+$isBeta = $version.Contains('-')
 
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 Copy-Item -Recurse $src $out
@@ -93,6 +95,7 @@ Get-ChildItem $out -Filter *.html -Recurse | ForEach-Object {
         '{{VERSION}}'      = Html $version
         '{{SIZE}}'         = Html $size
         '{{DOWNLOAD_URL}}' = Html $installer.url
+        '{{BETA_TAG}}'     = if ($isBeta) { '<span class="badge-tag badge-beta">BETA</span>' } else { '' }
         '{{YEAR}}'         = (Get-Date).Year
         '{{HEAD_META}}'    = Get-HeadMeta $page
     }

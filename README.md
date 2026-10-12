@@ -4,7 +4,7 @@ Azioni rapide su una ruota attorno al cursore, per Windows.
 
 - Sito: https://wheelor.app
 - Ultima versione: https://wheelor.app/latest.json
-- Download: https://github.com/xGariko/wheelor/releases/latest
+- Download: https://github.com/xGariko/wheelor/releases
 
 ```
 wheelor/
@@ -16,7 +16,7 @@ wheelor/
 │   ├── src/              modello della pagina con i segnaposto {{VERSION}}, {{SIZE}}, …
 │   └── build.ps1         riempie i segnaposto da latest.json → web/dist/
 └── .github/workflows/
-    ├── release.yml       tag vX.Y.Z → compila l'installer → GitHub Release → aggiorna il sito
+    ├── release.yml       tag vX.Y.Z[-beta.N] → compila l'installer → GitHub Release → aggiorna il sito
     └── site.yml          crea il sito e lo pubblica su GitHub Pages
 ```
 
@@ -86,7 +86,7 @@ A ogni versione:
 1. aggiorna `version` in `app/Cargo.toml` e fai commit;
 2. `git tag v0.2.0` e `git push origin main v0.2.0`.
 
-`release.yml` controlla che tag e versione coincidano, compila e testa su Windows, crea la release e fa ripartire `site.yml`. Dopo qualche minuto il sito mostra la nuova versione. Un tag con trattino (`v0.2.0-beta.1`) crea una pre-release e il sito resta com'è.
+`release.yml` controlla che tag e versione coincidano, compila e testa su Windows, crea la release e fa ripartire `site.yml`. Dopo qualche minuto il sito mostra la nuova versione. Un tag con trattino (`v0.2.0-beta.1`) crea una pre-release: finché non esiste una versione stabile il sito mostra quella, con l'etichetta **Beta**; dopo, il sito resta sull'ultima stabile.
 
 Le modifiche a `web/` sul ramo `main` ripubblicano il sito da sole, con i dati dell'ultima release.
 

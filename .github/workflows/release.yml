@@ -5,7 +5,8 @@
 #
 # Il workflow compila l'installer su Windows, crea la release su GitHub con installer, .sha256 e
 # latest.json, poi aggiorna il sito con i nuovi dati (versione, peso, link).
-# Un tag con trattino (es. v0.2.0-beta.1) diventa una pre-release e il sito non cambia.
+# Un tag con trattino (es. v0.2.0-beta.1) diventa una pre-release: il sito la mostra (con
+# l'etichetta Beta) solo finché non esiste una versione stabile, poi resta sull'ultima stabile.
 name: Release
 
 on:
@@ -55,8 +56,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       # Lanciato dal ramo principale (non dal tag), così Pages lo accetta senza regole aggiuntive.
+      # Anche per le pre-release: è site.yml a scegliere quale release mostrare.
       - name: Aggiorna il sito
-        if: ${{ !contains(github.ref_name, '-') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run site.yml --ref "${{ github.event.repository.default_branch }}"
