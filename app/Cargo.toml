@@ -1,0 +1,53 @@
+[package]
+name = "wheelor"
+version = "0.1.0"
+edition = "2024"
+description = "Azioni rapide su una ruota attorno al cursore, per Windows"
+publish = false
+
+[dependencies]
+raw-window-handle = "0.6"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
+windows-numerics = "0.3.1"
+# GUI delle impostazioni: solo backend winit + renderer software (niente GPU, niente Qt).
+slint = { version = "1.18.1", default-features = false, features = [
+    "std",
+    "compat-1-2",
+    "backend-winit",
+    "renderer-software",
+    "raw-window-handle-06",
+] }
+windows = { version = "0.62.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_System_Com",
+    "Win32_System_Environment",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+slint-build = "1.18.1"
+winresource = "0.1.34"
+
+# Build di release il più piccola e veloce possibile.
+[profile.release]
+opt-level = "s"     # ottimizza per dimensione: la ruota è comunque velocissima
+lto = true          # ottimizzazioni su tutto il programma, crate inclusi
+codegen-units = 1   # compilazione più lenta, binario più ottimizzato
+panic = "abort"     # niente codice di unwinding
+strip = true        # rimuove i simboli di debug dall'exe

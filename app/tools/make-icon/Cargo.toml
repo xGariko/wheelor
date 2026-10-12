@@ -1,0 +1,14 @@
+# Strumento di sviluppo: genera assets/wheelor.ico dal logo SVG.
+# Uso: cargo run --release --manifest-path tools/make-icon/Cargo.toml
+[package]
+name = "make-icon"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+resvg = "0.48.1"
+ico = "0.6.0"
+
+# Progetto indipendente, non fa parte della build di Wheelor.
+[workspace]

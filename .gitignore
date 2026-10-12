@@ -1,0 +1,6 @@
+# Output di compilazione (app/target, app/tools/make-icon/target, app/dist, web/dist)
+target/
+dist/
+
+# Impostazioni locali di Claude Code
+.claude/settings.local.json

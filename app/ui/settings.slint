@@ -1,0 +1,1103 @@
+// Finestra delle impostazioni di Wheelor.
+// Slint è dichiarativo: si descrive COME deve apparire l'interfaccia in base alle proprietà,
+// e si aggiorna da sola quando le proprietà cambiano (dal codice Rust o dall'utente).
+//
+// Tre pagine: Ruote (cosa mostra ogni ruota), Libreria (tutte le azioni salvate) e Generale.
+// I dati veri stanno in Rust: qui arrivano già pronti da mostrare (le "righe").
+
+import { AboutSlint, Button, LineEdit, ComboBox, CheckBox, TextEdit, ScrollView, ListView, Palette } from "std-widgets.slint";
+
+// Impostato da Rust all'avvio: Segoe Fluent Icons su Windows 11, Segoe MDL2 Assets su Windows 10.
+export global Fonts {
+    in property <string> icons: "Segoe Fluent Icons";
+}
+
+// Un'azione nell'elenco della libreria.
+export struct ActionRow {
+    id: string,
+    label: string,
+    glyph: string,   // carattere dell'icona, calcolato in Rust
+    detail: string,  // riassunto di cosa fa, es. "Apri · wt.exe"
+}
+
+// Una ruota nella colonna di sinistra.
+export struct WheelRow {
+    id: string,
+    name: string,
+    glyph: string,
+    detail: string,  // "Ruota principale", "Profilo · code.exe", "Sottomenu di …"
+}
+
+// Un elemento della ruota selezionata.
+export struct SlotRow {
+    label: string,
+    glyph: string,
+    submenu: bool,
+}
+
+// Una voce della finestra di scelta (azioni, sottomenu o app).
+export struct PickItem {
+    id: string,
+    glyph: string,
+    label: string,
+    detail: string,
+}
+
+export struct IconData {
+    code: string,
+    glyph: string,
+    name: string,
+}
+
+component Glyph inherits Text {
+    font-family: Fonts.icons;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    color: Palette.foreground;
+}
+
+// La stella del logo. Il renderer software riempie i Path con il solo primo colore del gradiente.
+component Star inherits Path {
+    viewbox-x: 672;
+    viewbox-y: 596;
+    viewbox-width: 686;
+    viewbox-height: 838;
+    commands: "M672 1015C672 1015 831.182 990.037 903.5 925.5C1004.86 835.05 1015 596 1015 596C1015 596 1025.14 835.05 1126.5 925.5C1198.82 990.037 1358 1015 1358 1015C1358 1015 1198.82 1039.96 1126.5 1104.5C1025.14 1194.95 1015 1434 1015 1434C1015 1434 1004.86 1194.95 903.5 1104.5C831.182 1039.96 672 1015 672 1015Z";
+    fill: @radial-gradient(circle, #83eaf0 0%, #49c8ce 100%);
+}
+
+// Il logo di Wheelor (assets/logo.svg) ricostruito con elementi Slint:
+// otto cerchi su un anello e la stella centrale, nitidi a qualsiasi dimensione.
+component Logo inherits Rectangle {
+    property <float> k: self.width / 2030px;  // scala: il logo originale è 2030×2030
+    // Cerchi come Path: il renderer software non ritaglia i gradienti con border-radius.
+    for i in 8: Path {
+        width: 519.58px * root.k;
+        height: self.width;
+        x: (1015 + 755.21 * cos(180deg + i * 45deg) - 259.79) * root.k * 1px;
+        y: (1015 + 755.21 * sin(180deg + i * 45deg) - 259.79) * root.k * 1px;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M0 50A50 50 0 1 0 100 50A50 50 0 1 0 0 50Z";
+        fill: #cfe4e4;  // tinta media del gradiente originale (#ffffff → #a1cccc)
+    }
+    Star {
+        x: 672px * root.k;
+        y: 596px * root.k;
+        width: 686px * root.k;
+        height: 838px * root.k;
+    }
+}
+
+component Hint inherits Text {
+    font-size: 12px;
+    color: Palette.foreground;
+    opacity: 0.6;
+    wrap: word-wrap;
+}
+
+component Title inherits Text {
+    font-size: 16px;
+    font-weight: 600;
+    color: Palette.foreground;
+}
+
+// Un campo con l'etichetta sopra.
+component Field inherits VerticalLayout {
+    in property <string> label;
+    spacing: 6px;
+    Text {
+        text: root.label;
+        font-size: 12px;
+        color: Palette.foreground;
+        opacity: 0.8;
+    }
+    @children
+}
+
+// Una riga cliccabile: icona, testo e (facoltativi) dettaglio e numero.
+component Row inherits Rectangle {
+    in property <string> glyph;
+    in property <string> text;
+    in property <string> detail;
+    in property <string> badge;
+    in property <bool> selected;
+    callback clicked;
+
+    property <brush> ink: root.selected ? Palette.accent-foreground : Palette.foreground;
+    height: root.detail == "" ? 40px : 48px;
+    border-radius: 6px;
+    background: root.selected ? Palette.accent-background : touch.has-hover ? Palette.control-background : transparent;
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        if root.badge != "": Text {
+            width: 14px;
+            text: root.badge;
+            font-size: 11px;
+            vertical-alignment: center;
+            color: root.ink;
+            opacity: 0.6;
+        }
+        Glyph {
+            width: 22px;
+            text: root.glyph;
+            font-size: 17px;
+            color: root.ink;
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+            horizontal-stretch: 1;
+            Text {
+                text: root.text;
+                overflow: elide;
+                color: root.ink;
+            }
+            if root.detail != "": Text {
+                text: root.detail;
+                font-size: 11px;
+                overflow: elide;
+                color: root.ink;
+                opacity: 0.65;
+            }
+        }
+    }
+}
+
+// Il riquadro dell'icona: cliccandolo si apre il selettore.
+component IconBox inherits Rectangle {
+    in property <string> glyph;
+    in property <bool> active;
+    callback clicked;
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    background: touch.has-hover ? Palette.alternate-background : Palette.control-background;
+    border-width: 1px;
+    border-color: root.active ? Palette.accent-background : Palette.border;
+    Glyph {
+        text: root.glyph;
+        font-size: 28px;
+    }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component IconPicker inherits Rectangle {
+    in property <[IconData]> icons;
+    in property <string> current;
+    in-out property <string> search;
+    callback search-changed(string);
+    callback picked(string);
+
+    property <length> cell: 44px;
+    property <int> columns: max(1, floor((self.width - 24px) / self.cell));
+    property <string> hovered;
+
+    height: 320px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Palette.border;
+    background: Palette.control-background;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 8px;
+        LineEdit {
+            placeholder-text: "Cerca un'icona (es. cartella, mail, play, E8B7)…";
+            text <=> root.search;
+            edited(text) => {
+                root.hovered = "";
+                root.search-changed(text);
+            }
+        }
+        ScrollView {
+            content-width: root.columns * root.cell;
+            content-height: ceil(root.icons.length / root.columns) * root.cell;
+            for icon[i] in root.icons: Rectangle {
+                x: mod(i, root.columns) * root.cell;
+                y: floor(i / root.columns) * root.cell;
+                width: root.cell - 4px;
+                height: root.cell - 4px;
+                border-radius: 6px;
+                background: icon.code == root.current ? Palette.accent-background
+                    : touch.has-hover ? Palette.alternate-background : transparent;
+                Glyph {
+                    text: icon.glyph;
+                    font-size: 20px;
+                    color: icon.code == root.current ? Palette.accent-foreground : Palette.foreground;
+                }
+                touch := TouchArea {
+                    clicked => { root.picked(icon.code); }
+                    changed has-hover => {
+                        if self.has-hover { root.hovered = icon.name + "  (" + icon.code + ")"; }
+                    }
+                }
+            }
+        }
+        Hint {
+            text: root.icons.length == 0 ? "Nessuna icona trovata." : root.hovered;
+            wrap: no-wrap;
+        }
+    }
+}
+
+// Anteprima della ruota, con le stesse proporzioni di quella vera (raggi 46 e 140).
+// I clic vengono passati a Rust, che usa lo stesso calcolo della ruota vera per trovare lo spicchio.
+component WheelPreview inherits Rectangle {
+    in property <[SlotRow]> slots;
+    in property <int> current: -1;
+    in property <string> title;  // testo nel mozzo; vuoto = stella del logo
+    callback clicked-at(float, float);  // posizione rispetto al centro, in pixel
+
+    property <int> count: self.slots.length;
+    property <angle> step: 360deg / max(1, self.count);
+    property <float> c: 150;  // centro
+    property <float> ri: 50;  // raggio interno della forma evidenziata (46 + 4)
+    property <float> ro: 136;  // raggio esterno della forma evidenziata (140 - 4)
+    property <brush> ink: #ffffff;
+
+    width: 300px;
+    height: 300px;
+
+    // Corpo della ruota.
+    Rectangle {
+        x: 10px;
+        y: 10px;
+        width: 280px;
+        height: 280px;
+        border-radius: 140px;
+        background: #212124;
+        border-width: 1px;
+        border-color: #ffffff1a;
+    }
+
+    // Spicchio selezionato: con un solo elemento è tutta la corona.
+    if root.current >= 0 && root.count == 1: Rectangle {
+        x: 14px;
+        y: 14px;
+        width: 272px;
+        height: 272px;
+        border-radius: 136px;
+        background: Palette.accent-background;
+    }
+    if root.current >= 0 && root.count > 1: Path {
+        // Angoli dei quattro vertici: lo stesso spazio di 4 px è un angolo più piccolo sul bordo esterno.
+        property <angle> mid: -90deg + root.current * root.step;
+        property <angle> i0: self.mid - root.step / 2 + (4 / root.ri) * 1rad;
+        property <angle> i1: self.mid + root.step / 2 - (4 / root.ri) * 1rad;
+        property <angle> o0: self.mid - root.step / 2 + (4 / root.ro) * 1rad;
+        property <angle> o1: self.mid + root.step / 2 - (4 / root.ro) * 1rad;
+        property <int> large: root.step > 180deg ? 1 : 0;
+        width: 300px;
+        height: 300px;
+        viewbox-width: 300;
+        viewbox-height: 300;
+        fill: Palette.accent-background;
+        commands: "M \{root.c + root.ri * cos(self.i0)} \{root.c + root.ri * sin(self.i0)} "
+            + "L \{root.c + root.ro * cos(self.o0)} \{root.c + root.ro * sin(self.o0)} "
+            + "A \{root.ro} \{root.ro} 0 \{self.large} 1 \{root.c + root.ro * cos(self.o1)} \{root.c + root.ro * sin(self.o1)} "
+            + "L \{root.c + root.ri * cos(self.i1)} \{root.c + root.ri * sin(self.i1)} "
+            + "A \{root.ri} \{root.ri} 0 \{self.large} 0 \{root.c + root.ri * cos(self.i0)} \{root.c + root.ri * sin(self.i0)} Z";
+    }
+
+    // Separatori tra gli spicchi.
+    for slot[i] in root.slots: Path {
+        property <angle> edge: -90deg + i * root.step - root.step / 2;
+        visible: root.count > 1;
+        width: 300px;
+        height: 300px;
+        viewbox-width: 300;
+        viewbox-height: 300;
+        stroke: #ffffff1a;
+        stroke-width: 1px;
+        commands: "M \{root.c + 54 * cos(self.edge)} \{root.c + 54 * sin(self.edge)} L \{root.c + 132 * cos(self.edge)} \{root.c + 132 * sin(self.edge)}";
+    }
+
+    // Icona ed etichetta di ogni spicchio.
+    for slot[i] in root.slots: VerticalLayout {
+        property <angle> a: -90deg + i * root.step;
+        property <brush> fg: i == root.current ? Palette.accent-foreground : root.ink;
+        width: 84px;
+        height: 50px;
+        x: (root.c + 93 * cos(self.a)) * 1px - self.width / 2;
+        y: (root.c + 93 * sin(self.a)) * 1px - self.height / 2;
+        alignment: center;
+        spacing: 2px;
+        Glyph {
+            text: slot.glyph;
+            font-size: 20px;
+            color: parent.fg;
+        }
+        Text {
+            text: slot.label + (slot.submenu ? " ›" : "");
+            font-size: 11px;
+            horizontal-alignment: center;
+            overflow: elide;
+            color: parent.fg;
+            opacity: i == root.current ? 1 : 0.75;
+        }
+    }
+
+    if root.count == 0: Text {
+        y: 60px;
+        width: 300px;
+        text: "Ruota vuota";
+        horizontal-alignment: center;
+        color: root.ink;
+        opacity: 0.6;
+    }
+
+    // Mozzo.
+    Rectangle {
+        x: 104px;
+        y: 104px;
+        width: 92px;
+        height: 92px;
+        border-radius: 46px;
+        background: #171719;
+        border-width: 1px;
+        border-color: #ffffff1a;
+        if root.title == "": Star {
+            width: 26px;
+            height: 32px;
+        }
+        if root.title != "": Text {
+            width: 80px;
+            text: root.title;
+            font-size: 12px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+            color: root.ink;
+        }
+    }
+
+    TouchArea {
+        clicked => { root.clicked-at(self.mouse-x / 1px - root.c, self.mouse-y / 1px - root.c); }
+    }
+}
+
+export component SettingsWindow inherits Window {
+    title: "Wheelor – Impostazioni";
+    preferred-width: 1080px;
+    preferred-height: 740px;
+    min-width: 920px;
+    min-height: 600px;
+    background: Palette.background;
+
+    // ── Dati che arrivano da Rust ───────────────────────────────────────────
+    in property <[WheelRow]> wheels;
+    in property <[SlotRow]> slots;
+    in property <[ActionRow]> actions;
+    in property <[IconData]> icons;
+    in property <[PickItem]> picker-items;
+    in property <int> action-count;
+    in property <int> max-slots: 8;
+    in property <string> status;
+    in property <bool> status-error;
+    in property <bool> dirty;
+    in property <string> config-path;
+    in property <string> version;
+
+    // Pagina visibile: 0 ruote, 1 libreria, 2 generale, 3 informazioni.
+    in-out property <int> page: 0;
+
+    // Ruota selezionata e suoi campi.
+    in-out property <string> current-wheel;
+    in-out property <int> current-slot: -1;
+    in-out property <string> wh-name;
+    in-out property <string> wh-icon;
+    in-out property <string> wh-apps;
+    in property <bool> wh-main;
+    in property <string> wh-hint;
+
+    // Azione selezionata e campi dell'editor.
+    in-out property <string> current-action;
+    in-out property <string> action-search;
+    in-out property <string> ed-label;
+    in-out property <string> ed-icon;
+    in-out property <int> ed-kind;
+    in-out property <string> ed-command;
+    in-out property <int> ed-shell;
+    in-out property <int> ed-window;
+    in-out property <string> ed-cwd;
+    in-out property <bool> ed-admin;
+    in-out property <string> ed-target;
+    in-out property <string> ed-args;
+    in-out property <string> ed-keys;
+    in-out property <string> ed-text;
+    in property <string> ed-usage;
+
+    // Impostazioni generali.
+    in-out property <string> hotkey;
+    in-out property <bool> autostart;
+
+    // Selettore icone (0 chiuso, 1 per l'azione, 2 per la ruota) e finestra di scelta
+    // (0 chiusa, 1 azioni, 2 sottomenu, 3 app aperte).
+    in-out property <int> picking-icon: 0;
+    in-out property <string> icon-search;
+    in-out property <int> picker: 0;
+    in property <string> picker-title;
+    in-out property <string> picker-search;
+    in-out property <bool> confirm-close;
+
+    // ── Implementati in Rust ────────────────────────────────────────────────
+    pure callback glyph(string) -> string;
+    callback select-wheel(string);
+    callback new-wheel();
+    callback delete-wheel();
+    callback wheel-edited();
+    callback preview-clicked(float, float);
+    callback select-slot(int);
+    callback move-slot(int);
+    callback remove-slot();
+    callback open-slot();
+    callback open-picker(int);
+    callback picker-search-changed(string);
+    callback picked(string);
+    callback select-action(string);
+    callback new-action();
+    callback duplicate-action();
+    callback delete-action();
+    callback action-edited();
+    callback search-actions(string);
+    callback search-icons(string);
+    callback pick-icon(string);
+    callback browse();
+    callback test();
+    callback general-edited();
+    callback open-config-folder();
+    callback save();
+    callback close-without-saving();
+
+    VerticalLayout {
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // ── Colonna di navigazione: ruote, libreria, generale ───────────
+            Rectangle {
+                width: 240px;
+                background: Palette.alternate-background;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 4px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        padding: 4px;
+                        padding-bottom: 12px;
+                        Logo {
+                            width: 30px;
+                            height: 30px;
+                        }
+                        Text {
+                            text: "Wheelor";
+                            font-size: 20px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                            color: Palette.foreground;
+                        }
+                    }
+                    Text {
+                        text: "RUOTE";
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: Palette.foreground;
+                        opacity: 0.6;
+                    }
+                    ListView {
+                        vertical-stretch: 1;
+                        for wheel in root.wheels: Row {
+                            glyph: wheel.glyph;
+                            text: wheel.name;
+                            detail: wheel.detail;
+                            selected: root.page == 0 && wheel.id == root.current-wheel;
+                            clicked => {
+                                root.page = 0;
+                                root.select-wheel(wheel.id);
+                            }
+                        }
+                    }
+                    Row {
+                        glyph: "\u{E710}";
+                        text: "Nuova ruota";
+                        clicked => { root.new-wheel(); }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Palette.border;
+                    }
+                    Row {
+                        glyph: "\u{E8F1}";
+                        text: "Libreria";
+                        detail: root.action-count == 1 ? "1 azione" : "\{root.action-count} azioni";
+                        selected: root.page == 1;
+                        clicked => { root.page = 1; }
+                    }
+                    Row {
+                        glyph: "\u{E713}";
+                        text: "Generale";
+                        selected: root.page == 2;
+                        clicked => { root.page = 2; }
+                    }
+                    Row {
+                        glyph: "\u{E946}";
+                        text: "Informazioni";
+                        selected: root.page == 3;
+                        clicked => { root.page = 3; }
+                    }
+                }
+            }
+
+            // ── Pagina Ruote ─────────────────────────────────────────────────
+            if root.page == 0: ScrollView {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+                    alignment: start;
+
+                    HorizontalLayout {
+                        spacing: 14px;
+                        IconBox {
+                            // Senza icona scelta, la stessa icona generica mostrata nella colonna a sinistra.
+                            glyph: root.wh-icon != "" ? root.glyph(root.wh-icon) : root.wh-main ? "\u{E80F}" : "\u{E8A9}";
+                            active: root.picking-icon == 2;
+                            clicked => { root.picking-icon = root.picking-icon == 2 ? 0 : 2; }
+                        }
+                        Field {
+                            label: "Nome della ruota";
+                            horizontal-stretch: 1;
+                            LineEdit {
+                                text <=> root.wh-name;
+                                edited(text) => { root.wheel-edited(); }
+                            }
+                            Hint { text: "L'icona si vede quando la ruota è un sottomenu."; }
+                        }
+                        VerticalLayout {
+                            alignment: start;
+                            padding-top: 22px;
+                            Button {
+                                text: "Elimina ruota";
+                                enabled: !root.wh-main;
+                                clicked => { root.delete-wheel(); }
+                            }
+                        }
+                    }
+
+                    if root.picking-icon == 2: IconPicker {
+                        icons: root.icons;
+                        current: root.wh-icon;
+                        search <=> root.icon-search;
+                        search-changed(text) => { root.search-icons(text); }
+                        picked(code) => { root.pick-icon(code); }
+                    }
+
+                    if !root.wh-main: Field {
+                        label: "Profilo: apri questa ruota al posto della principale in queste app";
+                        HorizontalLayout {
+                            spacing: 8px;
+                            LineEdit {
+                                text <=> root.wh-apps;
+                                placeholder-text: "es. code.exe, notepad.exe (separate da virgole)";
+                                edited(text) => { root.wheel-edited(); }
+                            }
+                            Button {
+                                text: "Scegli tra le app aperte…";
+                                clicked => { root.open-picker(3); }
+                            }
+                        }
+                    }
+                    if root.wh-hint != "": Hint { text: root.wh-hint; }
+
+                    HorizontalLayout {
+                        spacing: 28px;
+                        alignment: start;
+                        WheelPreview {
+                            slots: root.slots;
+                            current: root.current-slot;
+                            title: root.wh-main ? "" : root.wh-name;
+                            clicked-at(x, y) => { root.preview-clicked(x, y); }
+                        }
+                        VerticalLayout {
+                            spacing: 4px;
+                            min-width: 280px;
+                            alignment: start;  // lo spazio in più va in fondo, non tra i pulsanti
+                            Text {
+                                text: "Elementi (\{root.slots.length}/\{root.max-slots})";
+                                font-weight: 600;
+                                color: Palette.foreground;
+                            }
+                            Hint { text: "In senso orario dall'alto. Il numero è il tasto rapido."; }
+                            for slot[i] in root.slots: Row {
+                                badge: "\{i + 1}";
+                                glyph: slot.glyph;
+                                text: slot.label;
+                                detail: slot.submenu ? "Sottomenu" : "";
+                                selected: i == root.current-slot;
+                                clicked => { root.select-slot(i); }
+                            }
+                            Rectangle { height: 6px; }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Button {
+                                    text: "Aggiungi azione…";
+                                    enabled: root.slots.length < root.max-slots;
+                                    clicked => { root.open-picker(1); }
+                                }
+                                Button {
+                                    text: "Aggiungi sottomenu…";
+                                    enabled: root.slots.length < root.max-slots;
+                                    clicked => { root.open-picker(2); }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Button {
+                                    text: "← Prima";
+                                    enabled: root.current-slot > 0;
+                                    clicked => { root.move-slot(-1); }
+                                }
+                                Button {
+                                    text: "Dopo →";
+                                    enabled: root.current-slot >= 0 && root.current-slot < root.slots.length - 1;
+                                    clicked => { root.move-slot(1); }
+                                }
+                                Button {
+                                    text: "Togli";
+                                    enabled: root.current-slot >= 0;
+                                    clicked => { root.remove-slot(); }
+                                }
+                                Button {
+                                    text: "Modifica";
+                                    enabled: root.current-slot >= 0;
+                                    clicked => { root.open-slot(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Pagina Libreria ──────────────────────────────────────────────
+            if root.page == 1: HorizontalLayout {
+                horizontal-stretch: 1;
+                Rectangle {
+                    width: 300px;
+                    border-width: 0px;
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 8px;
+                        Title { text: "Libreria"; }
+                        Hint { text: "Tutte le azioni salvate. Mettile nelle ruote dalla pagina della ruota."; }
+                        LineEdit {
+                            text <=> root.action-search;
+                            placeholder-text: "Cerca…";
+                            edited(text) => { root.search-actions(text); }
+                        }
+                        ListView {
+                            vertical-stretch: 1;
+                            for action in root.actions: Row {
+                                glyph: action.glyph;
+                                text: action.label;
+                                detail: action.detail;
+                                selected: action.id == root.current-action;
+                                clicked => { root.select-action(action.id); }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Button {
+                                text: "Nuova";
+                                clicked => { root.new-action(); }
+                            }
+                            Button {
+                                text: "Duplica";
+                                enabled: root.current-action != "";
+                                clicked => { root.duplicate-action(); }
+                            }
+                            Button {
+                                text: "Elimina";
+                                enabled: root.current-action != "";
+                                clicked => { root.delete-action(); }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 1px;
+                    background: Palette.border;
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+
+                    if root.current-action == "": Text {
+                        text: "Seleziona un'azione a sinistra, oppure creane una nuova.";
+                        color: Palette.foreground;
+                        opacity: 0.6;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    if root.current-action != "": ScrollView {
+                        VerticalLayout {
+                            padding: 24px;
+                            spacing: 18px;
+                            alignment: start;
+
+                            HorizontalLayout {
+                                spacing: 14px;
+                                IconBox {
+                                    glyph: root.glyph(root.ed-icon);
+                                    active: root.picking-icon == 1;
+                                    clicked => { root.picking-icon = root.picking-icon == 1 ? 0 : 1; }
+                                }
+                                Field {
+                                    label: "Etichetta";
+                                    horizontal-stretch: 1;
+                                    LineEdit {
+                                        text <=> root.ed-label;
+                                        placeholder-text: "Nome mostrato sulla ruota";
+                                        edited(text) => { root.action-edited(); }
+                                    }
+                                    Hint { text: root.ed-usage; }
+                                }
+                            }
+
+                            if root.picking-icon == 1: IconPicker {
+                                icons: root.icons;
+                                current: root.ed-icon;
+                                search <=> root.icon-search;
+                                search-changed(text) => { root.search-icons(text); }
+                                picked(code) => { root.pick-icon(code); }
+                            }
+
+                            Field {
+                                label: "Tipo di azione";
+                                ComboBox {
+                                    model: ["Comando da terminale", "Apri app, file, cartella o sito", "Combinazione di tasti", "Scrivi un testo"];
+                                    current-index <=> root.ed-kind;
+                                    selected(value) => { root.action-edited(); }
+                                }
+                            }
+
+                            if root.ed-kind == 0: VerticalLayout {
+                                spacing: 18px;
+                                Field {
+                                    label: "Comando";
+                                    TextEdit {
+                                        text <=> root.ed-command;
+                                        min-height: 120px;
+                                        edited(text) => { root.action-edited(); }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    Field {
+                                        label: "Shell";
+                                        horizontal-stretch: 1;
+                                        ComboBox {
+                                            model: ["PowerShell", "PowerShell 7 (pwsh)", "Prompt dei comandi (cmd)"];
+                                            current-index <=> root.ed-shell;
+                                            selected(value) => { root.action-edited(); }
+                                        }
+                                    }
+                                    Field {
+                                        label: "Finestra";
+                                        horizontal-stretch: 1;
+                                        ComboBox {
+                                            model: ["Nascosta (in background)", "Visibile", "Visibile, resta aperta"];
+                                            current-index <=> root.ed-window;
+                                            selected(value) => { root.action-edited(); }
+                                        }
+                                    }
+                                }
+                                Field {
+                                    label: "Cartella di lavoro";
+                                    LineEdit {
+                                        text <=> root.ed-cwd;
+                                        placeholder-text: "Vuota = cartella utente. Accetta %VARIABILI% e ~";
+                                        edited(text) => { root.action-edited(); }
+                                    }
+                                }
+                                CheckBox {
+                                    text: "Esegui come amministratore";
+                                    checked <=> root.ed-admin;
+                                    toggled => { root.action-edited(); }
+                                }
+                                Hint {
+                                    text: "Il comando riceve le variabili d'ambiente WHEELOR_APP e WHEELOR_TITLE (eseguibile e titolo della finestra in primo piano quando hai aperto la ruota) e WHEELOR_PROFILE (nome della ruota di partenza). In modalità nascosta, se il comando fallisce compare una notifica con l'errore.";
+                                }
+                            }
+
+                            if root.ed-kind == 1: VerticalLayout {
+                                spacing: 18px;
+                                Field {
+                                    label: "App, file, cartella o URL";
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        LineEdit {
+                                            text <=> root.ed-target;
+                                            placeholder-text: "es. notepad.exe, C:\\Progetti, https://…";
+                                            edited(text) => { root.action-edited(); }
+                                        }
+                                        Button {
+                                            text: "Sfoglia…";
+                                            clicked => { root.browse(); }
+                                        }
+                                    }
+                                }
+                                Field {
+                                    label: "Argomenti (facoltativi)";
+                                    LineEdit {
+                                        text <=> root.ed-args;
+                                        edited(text) => { root.action-edited(); }
+                                    }
+                                }
+                            }
+
+                            if root.ed-kind == 2: VerticalLayout {
+                                spacing: 18px;
+                                Field {
+                                    label: "Combinazione di tasti";
+                                    LineEdit {
+                                        text <=> root.ed-keys;
+                                        placeholder-text: "es. Ctrl+Shift+S, Win+E, MediaPlayPause";
+                                        edited(text) => { root.action-edited(); }
+                                    }
+                                }
+                                Hint {
+                                    text: "Modificatori: Ctrl, Alt, Shift, Win. Tasti: lettere, cifre, F1–F24, Enter, Esc, Tab, Space, Delete, Home, End, PageUp, PageDown, Up, Down, Left, Right, PrintScreen, MediaPlayPause, MediaNext, MediaPrev, VolumeUp, VolumeDown, VolumeMute.";
+                                }
+                            }
+
+                            if root.ed-kind == 3: Field {
+                                label: "Testo da scrivere";
+                                TextEdit {
+                                    text <=> root.ed-text;
+                                    min-height: 120px;
+                                    edited(text) => { root.action-edited(); }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                alignment: start;
+                                Button {
+                                    text: "Prova azione";
+                                    clicked => { root.test(); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Pagina Generale ──────────────────────────────────────────────
+            if root.page == 2: ScrollView {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 18px;
+                    alignment: start;
+                    Title { text: "Generale"; }
+                    Field {
+                        label: "Scorciatoia per aprire la ruota";
+                        HorizontalLayout {
+                            alignment: start;
+                            LineEdit {
+                                width: 220px;
+                                text <=> root.hotkey;
+                                edited(text) => { root.general-edited(); }
+                            }
+                        }
+                        Hint { text: "Es. Ctrl+Alt+W, Win+Shift+Space, F13. Premila e rilasciala per scegliere con un clic, oppure tienila premuta, punta e rilascia."; }
+                    }
+                    CheckBox {
+                        text: "Avvia Wheelor con Windows";
+                        checked <=> root.autostart;
+                        toggled => { root.general-edited(); }
+                    }
+                    Field {
+                        label: "File di configurazione";
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: start;
+                            Text {
+                                text: root.config-path;
+                                vertical-alignment: center;
+                                color: Palette.foreground;
+                            }
+                            Button {
+                                text: "Apri cartella";
+                                clicked => { root.open-config-folder(); }
+                            }
+                        }
+                        Hint { text: "Puoi anche modificarlo a mano: Wheelor lo ricarica alla successiva apertura della ruota."; }
+                    }
+                }
+            }
+
+            // ── Pagina Informazioni ──────────────────────────────────────────
+            // Il widget AboutSlint è richiesto dalla licenza gratuita di Slint (in una schermata
+            // "Informazioni" raggiungibile dal menu principale).
+            if root.page == 3: ScrollView {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 18px;
+                    alignment: start;
+                    Title { text: "Informazioni"; }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: start;
+                        Logo {
+                            width: 40px;
+                            height: 40px;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "Wheelor \{root.version}";
+                                font-weight: 600;
+                                color: Palette.foreground;
+                            }
+                            Hint { text: "Azioni rapide su una ruota attorno al cursore."; }
+                        }
+                    }
+                    Hint {
+                        text: "Le icone sono quelle del font di sistema di Windows (Segoe Fluent Icons); i loro nomi vengono dalla documentazione Microsoft, con licenza CC BY 4.0.";
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        AboutSlint { }
+                    }
+                }
+            }
+        }
+
+        // ── Barra inferiore: stato e salvataggio ───────────────────────────────
+        Rectangle {
+            height: 60px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 12px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.status;
+                    vertical-alignment: center;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                    color: root.status-error ? #e5484d : Palette.foreground;
+                }
+                Button {
+                    text: "Salva";
+                    primary: true;
+                    enabled: root.dirty;
+                    clicked => { root.save(); }
+                }
+            }
+        }
+    }
+
+    // ── Finestra di scelta: azione, sottomenu o app ─────────────────────────────
+    if root.picker != 0: Rectangle {
+        background: #00000088;
+        TouchArea {
+            clicked => { root.picker = 0; }  // clic fuori dal riquadro: chiude
+        }
+        Rectangle {
+            width: 480px;
+            height: min(560px, root.height - 80px);
+            border-radius: 10px;
+            background: Palette.background;
+            border-width: 1px;
+            border-color: Palette.border;
+            TouchArea { }  // i clic dentro il riquadro non lo chiudono
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                Title { text: root.picker-title; }
+                LineEdit {
+                    text <=> root.picker-search;
+                    placeholder-text: "Cerca…";
+                    edited(text) => { root.picker-search-changed(text); }
+                    init => { self.focus(); }
+                }
+                ListView {
+                    vertical-stretch: 1;
+                    for item in root.picker-items: Row {
+                        glyph: item.glyph;
+                        text: item.label;
+                        detail: item.detail;
+                        clicked => { root.picked(item.id); }
+                    }
+                }
+                if root.picker-items.length == 0: Hint { text: "Niente da mostrare."; }
+                HorizontalLayout {
+                    alignment: end;
+                    Button {
+                        text: "Annulla";
+                        clicked => { root.picker = 0; }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Conferma alla chiusura con modifiche non salvate ────────────────────────
+    if root.confirm-close: Rectangle {
+        background: #00000088;
+        TouchArea { }  // assorbe i clic diretti alla finestra sotto
+        Rectangle {
+            width: 420px;
+            height: 140px;
+            border-radius: 10px;
+            background: Palette.background;
+            border-width: 1px;
+            border-color: Palette.border;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 16px;
+                Text {
+                    text: "Ci sono modifiche non salvate.";
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Palette.foreground;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Button {
+                        text: "Annulla";
+                        clicked => { root.confirm-close = false; }
+                    }
+                    Button {
+                        text: "Esci senza salvare";
+                        clicked => { root.close-without-saving(); }
+                    }
+                    Button {
+                        text: "Salva ed esci";
+                        primary: true;
+                        clicked => {
+                            root.save();
+                            if !root.dirty {
+                                root.close-without-saving();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
