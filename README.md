@@ -2,7 +2,8 @@
 
 Azioni rapide su una ruota attorno al cursore, per Windows.
 
-- Sito: https://xgariko.github.io/wheelor/
+- Sito: https://wheelor.app
+- Ultima versione: https://wheelor.app/latest.json
 - Download: https://github.com/xGariko/wheelor/releases/latest
 
 ```
@@ -46,7 +47,7 @@ Non serve un database: i dati sono pochi, cambiano solo a ogni release e sono pu
 |---|---|
 | Installer e `.sha256` | **GitHub Releases**: gratuito, CDN, nessun limite di banda per i repository pubblici, storico di tutte le versioni e conteggio dei download |
 | Versione, data, peso, hash, link | `latest.json`, allegato a ogni release e copiato nel sito (`/latest.json`) |
-| Landing page | **GitHub Pages**, ricreata da `site.yml` |
+| Landing page | **GitHub Pages** su `wheelor.app`, ricreata da `site.yml` |
 
 La pagina è statica: versione e peso sono scritti nell'HTML al momento della pubblicazione, quindi si vede tutto anche senza JavaScript e nessuna richiesta parte dal browser verso altri servizi (a parte Google Fonts).
 
@@ -65,11 +66,20 @@ La pagina è statica: versione e peso sono scritti nell'HTML al momento della pu
 }
 ```
 
-Lo stesso indirizzo (`<sito>/latest.json`) potrà servire all'app per controllare gli aggiornamenti.
+Lo stesso indirizzo (`https://wheelor.app/latest.json`) potrà servire all'app per controllare gli aggiornamenti.
 
 ## Pubblicazione
 
-Il repository è pubblico (le release di un repository privato non si scaricano senza accesso) e GitHub Pages usa come sorgente **GitHub Actions** (*Settings → Pages*).
+Il repository è pubblico (le release di un repository privato non si scaricano senza accesso) e GitHub Pages usa come sorgente **GitHub Actions** (*Settings → Pages*), con dominio personalizzato `wheelor.app`.
+
+DNS del dominio (Hostinger):
+
+| Tipo | Nome | Valore |
+|---|---|---|
+| A | `@` | `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` |
+| AAAA | `@` | `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153` |
+| CNAME | `www` | `xgariko.github.io` |
+| TXT | `_github-pages-challenge-xGariko` | codice da *GitHub → Settings → Pages → Add a domain* (verifica del dominio) |
 
 A ogni versione:
 

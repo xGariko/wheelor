@@ -23,10 +23,10 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-; Da compilare quando ci sarà una pagina pubblica del progetto:
-; AppPublisherURL=https://…
-; AppSupportURL=https://…/issues
-; AppUpdatesURL=https://…/releases
+; Mostrati in Impostazioni > App > Wheelor.
+AppPublisherURL=https://wheelor.app
+AppSupportURL=https://github.com/xGariko/wheelor/issues
+AppUpdatesURL=https://wheelor.app
 VersionInfoVersion={#AppVersion}
 VersionInfoProductName={#AppName}
 VersionInfoDescription={#AppName} Setup

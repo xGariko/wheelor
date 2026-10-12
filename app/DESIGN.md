@@ -95,7 +95,7 @@ slots = ["terminale"]
   - attività "Avvia all'accesso" (in aggiornamento riflette lo stato attuale); collegamento nel menu Start; voce in Impostazioni > App;
   - aggiornamento: chiude Wheelor in background (`WM_CLOSE` alla finestra `WheelorMain`), la finestra delle impostazioni la chiude la Gestione riavvio; in modalità silenziosa (winget) riavvia Wheelor se era attivo;
   - disinstallazione: chiude Wheelor, toglie l'avvio automatico se punta a questa installazione, chiede se eliminare le impostazioni (predefinito: no; in silenzioso le conserva).
-- **Release e sito** (vedi il `README.md` nella radice del repository): un tag `vX.Y.Z` fa partire `.github/workflows/release.yml`, che compila l'installer su Windows e lo pubblica come GitHub Release; poi `site.yml` ricrea la landing page (`../web`) con i dati di `latest.json` e la pubblica su GitHub Pages.
+- **Release e sito** (vedi il `README.md` nella radice del repository): un tag `vX.Y.Z` fa partire `.github/workflows/release.yml`, che compila l'installer su Windows e lo pubblica come GitHub Release; poi `site.yml` ricrea la landing page (`../web`) con i dati di `latest.json` e la pubblica su GitHub Pages, all'indirizzo https://wheelor.app.
 - Da fare prima di pubblicare: licenza, nome dell'editore e copyright, avvisi di terze parti (crate Rust, Slint), firma del codice, repository pubblico, manifest winget.
 
 ## Insidie note
