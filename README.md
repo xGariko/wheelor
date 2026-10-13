@@ -31,6 +31,21 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1      # installer in
 
 `installer\build.ps1` scrive in `app\dist` l'installer, il suo `.sha256` e `latest.json`.
 
+### Skia
+
+La finestra delle impostazioni usa il renderer Skia di Slint. I binari precompilati di Skia esistono solo con il runtime C dinamico, mentre noi linkiamo quello statico (`app\.cargo\config.toml`, così l'exe non chiede i Visual C++ Redistributable): Skia si compila quindi da sorgente con `clang-cl` e Ninja. Ci vogliono pochi minuti, poi resta in `app\target` finché non cambia la versione di Slint.
+
+Sui runner `windows-latest` di GitHub va tutto da solo (LLVM c'è già, Ninja lo installa `release.yml`). In locale lo scaricamento automatico dei sorgenti si inceppa (collegamenti simbolici, percorsi oltre i 260 caratteri, spazi nel nome della cartella utente), quindi una volta per macchina:
+
+```powershell
+winget install LLVM.LLVM Ninja-build.Ninja
+git clone --depth 1 --branch m153-0.101.2 https://github.com/rust-skia/skia C:\progetti\skia
+cd C:\progetti\skia; $env:GIT_SYNC_DEPS_SKIP_EMSDK = 1; python tools\git-sync-deps
+[Environment]::SetEnvironmentVariable('SKIA_SOURCE_DIR', 'C:\progetti\skia', 'User')   # poi riapri il terminale
+```
+
+La cartella deve avere un percorso corto e senza spazi. Il tag (`m153-0.101.2`) è la voce `skia` di `[package.metadata]` nel `Cargo.toml` di `skia-bindings`: quando un aggiornamento di Slint porta un'altra versione di `skia-bindings`, va ripetuto con il tag nuovo. Gli errori "Filename too long" di `git-sync-deps` riguardano file di test di dipendenze e si possono ignorare.
+
 ## Sito
 
 ```powershell

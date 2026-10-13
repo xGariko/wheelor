@@ -122,7 +122,7 @@ component Glyph inherits Text {
     color: Theme.text;
 }
 
-// La stella del logo. Il renderer software riempie i Path con il solo primo colore del gradiente.
+// La stella del logo, con il gradiente radiale di logo.svg.
 component Star inherits Path {
     viewbox-x: 672;
     viewbox-y: 596;
@@ -136,7 +136,7 @@ component Star inherits Path {
 // otto cerchi su un anello e la stella centrale, nitidi a qualsiasi dimensione.
 component Logo inherits Rectangle {
     property <float> k: self.width / 2030px;  // scala: il logo originale è 2030×2030
-    // Cerchi come Path: il renderer software non ritaglia i gradienti con border-radius.
+    // Cerchi come Path: il renderer software dei provini non ritaglia i gradienti con border-radius.
     for i in 8: Path {
         width: 519.58px * root.k;
         height: self.width;
@@ -243,9 +243,13 @@ component Btn {
         : root.tone == Tone.destructive ? Theme.on-danger
         : root.tone == Tone.danger ? Theme.danger : Theme.text;
 
+    // Disattivato, sfondo e testo sbiadiscono ciascuno per conto suo: con un'unica `opacity` sul
+    // pulsante intero il testo scuro dei pulsanti pieni resterebbe ben leggibile, quasi attivo.
+    property <float> fade: root.enabled ? 1 : 0.38;
+    animate fade { duration: Theme.quick; }
+
     height: Theme.control;
     horizontal-stretch: 0;
-    opacity: root.enabled ? 1 : 0.38;
     forward-focus: keys;
     accessible-role: button;
     accessible-label: root.text;
@@ -253,9 +257,9 @@ component Btn {
     accessible-action-default => {
         if root.enabled { root.clicked(); }
     }
-    animate opacity { duration: Theme.quick; }
 
     Rectangle {
+        opacity: root.fade;
         border-radius: self.height / 2;
         background: root.tone == Tone.primary ? (root.down ? Theme.accent-press : root.hot ? Theme.accent-hover : Theme.accent)
             : root.tone == Tone.destructive ? (root.hot ? Theme.danger-hover : Theme.danger)
@@ -290,11 +294,13 @@ component Btn {
         spacing: 8px;
         alignment: center;
         if root.glyph != "": Glyph {
+            opacity: root.fade;
             text: root.glyph;
             font-size: 14px;
             color: root.ink;
         }
         Text {
+            opacity: root.fade;
             text: root.text;
             font-size: 14px;
             font-weight: 600;

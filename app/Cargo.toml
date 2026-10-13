@@ -1,6 +1,6 @@
 [package]
 name = "wheelor"
-version = "0.2.0-beta.1"
+version = "0.2.1-beta.1"
 edition = "2024"
 description = "Azioni rapide su una ruota attorno al cursore, per Windows"
 publish = false
@@ -11,12 +11,14 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 toml = "1.1.8"
 windows-numerics = "0.3.1"
-# GUI delle impostazioni: solo backend winit + renderer software (niente GPU, niente Qt).
+# GUI delle impostazioni: backend winit + renderer Skia (niente Qt). Skia disegna sulla CPU
+# (vedi settings::show), ma con un antialiasing vero: il renderer software di Slint sgranava
+# testo e bordi curvi.
 slint = { version = "1.18.1", default-features = false, features = [
     "std",
     "compat-1-2",
     "backend-winit",
-    "renderer-software",
+    "renderer-skia",
     "raw-window-handle-06",
 ] }
 windows = { version = "0.62.2", features = [
@@ -46,6 +48,11 @@ windows = { version = "0.62.2", features = [
     "Win32_UI_Shell_Common",
     "Win32_UI_WindowsAndMessaging",
 ] }
+
+# Solo per i test: i provini della finestra (settings_snapshots) si disegnano in memoria con il
+# renderer software, l'unico che Slint permette di usare fuori da una finestra vera.
+[dev-dependencies]
+slint = { version = "1.18.1", default-features = false, features = ["renderer-software"] }
 
 [build-dependencies]
 slint-build = "1.18.1"

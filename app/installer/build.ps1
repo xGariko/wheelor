@@ -8,7 +8,8 @@
   3. scrive accanto all'installer il suo hash SHA-256 (serve a winget e a chi lo scarica);
   4. scrive dist\latest.json: versione, data, nome, indirizzo, peso e hash dell'installer.
      Lo usa il sito (web\build.ps1) e viene allegato a ogni release.
-  Richiede Rust (cargo) e Inno Setup 6.6 o successivo (winget install JRSoftware.InnoSetup).
+  Richiede Rust (cargo), LLVM e Ninja (winget install LLVM.LLVM Ninja-build.Ninja: servono a
+  compilare Skia, vedi README) e Inno Setup 6.6 o successivo (winget install JRSoftware.InnoSetup).
 
 .PARAMETER SkipTests
   Non esegue cargo test.

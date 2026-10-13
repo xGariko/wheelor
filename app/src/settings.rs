@@ -104,6 +104,8 @@ struct App {
 }
 
 fn show() -> Result<(), slint::PlatformError> {
+    // Skia disegnato sulla CPU, come la ruota: niente driver della GPU per una finestra che si apre ogni tanto.
+    slint::BackendSelector::new().backend_name("winit".into()).renderer_name("skia-software".into()).select()?;
     // Se il file ha errori partiamo dai valori predefiniti, avvisando che il salvataggio lo sostituirà.
     i18n::set(None);
     let (config, load_error) = match config::load() {

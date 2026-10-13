@@ -86,7 +86,7 @@ slots = ["terminale"]
 
 ### Finestra impostazioni
 - Stesso exe, processo separato: `wheelor.exe --settings` (il processo in background resta a ~3 MB privati).
-- **Slint** (`ui/settings.slint`), backend winit + renderer software. Tema scuro con la palette del sito (`Theme`); campi e menu sono i widget Fluent forzati in scuro, pulsanti a pillola, interruttori, scelte a segmenti, righe e finestre di dialogo sono componenti propri, con brevi animazioni (Tab + Invio/Spazio funzionano anche sui pulsanti).
+- **Slint** (`ui/settings.slint`), backend winit + renderer Skia, che disegna sulla CPU (`skia-software`, scelto in `settings::show`): niente driver della GPU, come la ruota. Il renderer software di Slint costava meno (exe di 7 MB più leggero) ma su schermi al 100% sgranava: testo senza hinting né gamma, bordi da 1 px a scalini sulle curve. Skia rasterizza il testo con DirectWrite. Va compilato da sorgente per il CRT statico (vedi README). Tema scuro con la palette del sito (`Theme`); campi e menu sono i widget Fluent forzati in scuro, pulsanti a pillola, interruttori, scelte a segmenti, righe e finestre di dialogo sono componenti propri, con brevi animazioni (Tab + Invio/Spazio funzionano anche sui pulsanti).
 - Griglia: ogni pagina è una colonna (`Page`) con margini di 32 px e larghezza massima di 1000 px, titolo + sezioni (`PageHeader`, `Section`) distanti 32 px; pulsanti e campi alti 32 px; testo a 14 px, spiegazioni a 13, mai sotto i 12.
 - Layout adattabile: con almeno 840 px di contenuto l'anteprima della ruota sta accanto all'elenco degli elementi e cresce fino al 20%, altrimenti sta sopra; nella Libreria l'elenco prende un terzo dello spazio (272–380 px).
 - Colonna di sinistra: elenco delle ruote (con il ruolo: principale, profilo, sottomenu, non usata), "Nuova ruota", Libreria, Generale, Informazioni; in fondo, se c'è, il riquadro della nuova versione con "Aggiorna".
@@ -98,7 +98,8 @@ slots = ["terminale"]
 - Le modifiche lavorano su una copia della configurazione in memoria (`App::config`); "Salva" la controlla (`Config::check`) e la scrive.
 - Eliminare una ruota o un'azione chiede conferma, dicendo da quali ruote sparirà (Esc annulla, Invio conferma). "Togli" un elemento da una ruota non chiede conferma: non elimina nulla.
 - Selettore icone: 1533 glifi Segoe Fluent Icons con nome (`src/icons.txt`, dalla documentazione Microsoft) e ricerca anche in italiano.
-- Limite noto del renderer software: i Path ignorano i gradienti e i gradienti non vengono ritagliati da `border-radius`.
+- I provini (`cargo test settings_snapshots -- --ignored`) si disegnano in memoria con il renderer software di Slint, l'unico usabile fuori da una finestra: sono un po' meno fini della finestra vera, e lì i Path ignorano i gradienti e i gradienti non vengono ritagliati da `border-radius` (per questo i cerchi del logo sono Path).
+- Skia applica `opacity` al gruppo (l'elemento con tutti i figli), il renderer software a ogni elemento: dove conta l'aspetto "sbiadito" di ciascun pezzo (pulsanti disattivati) l'opacità va messa sui singoli elementi.
 
 ### Lingue
 - Italiano e inglese (`i18n.rs`). Preferenza `language` nel file (`"it"`, `"en"`; assente = come Windows: italiano se l'interfaccia di Windows è in italiano, altrimenti inglese). Al primo avvio la configurazione di esempio nasce nella lingua di Windows.

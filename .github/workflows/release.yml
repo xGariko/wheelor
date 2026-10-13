@@ -37,8 +37,9 @@ jobs:
         with:
           workspaces: app
 
-      - name: Installa Inno Setup
-        run: choco upgrade innosetup -y --no-progress
+      # Ninja serve a compilare Skia da sorgente (vedi README); LLVM è già sul runner.
+      - name: Installa Inno Setup e Ninja
+        run: choco upgrade innosetup ninja -y --no-progress
 
       - name: Compila l'installer
         run: ./app/installer/build.ps1 -DownloadBase "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:GITHUB_REF_NAME"
