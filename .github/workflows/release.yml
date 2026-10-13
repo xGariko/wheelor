@@ -70,7 +70,17 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           $version = $tag.Substring(1)
           $setup = "app/dist/Wheelor-Setup-$version.exe"
-          $flags = @('--title', "Wheelor $version", '--generate-notes')
+          $flags = @('--title', "Wheelor $version")
+          # Note della release: la sezione "## <versione>" di CHANGELOG.md (è la pagina che apre
+          # «Novità» nell'app); se manca, quelle generate da GitHub.
+          $section = [regex]::Match((Get-Content -Raw CHANGELOG.md), "(?ms)^## $([regex]::Escape($version))(?=\s)[^\n]*\n(.*?)(?=^## |\z)")
+          if ($section.Success) {
+            $section.Groups[1].Value.Trim() | Set-Content -Encoding utf8 release-notes.md
+            $flags += @('--notes-file', 'release-notes.md')
+          } else {
+            Write-Host "::warning::CHANGELOG.md non ha una sezione per ${version}: note generate da GitHub"
+            $flags += '--generate-notes'
+          }
           if ($version.Contains('-')) { $flags += '--prerelease' }
           gh release create $tag $setup "$setup.sha256" app/dist/latest.json @flags
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

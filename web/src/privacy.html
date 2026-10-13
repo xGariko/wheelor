@@ -23,7 +23,7 @@
     <header class="doc-head">
       <span class="eyebrow">PRIVACY</span>
       <h1 class="doc-title">Privacy policy</h1>
-      <p class="meta">Last updated: 12 October 2026</p>
+      <p class="meta">Last updated: 13 October 2026</p>
     </header>
 
     <p class="lead">This page explains what Wheelor, both the app and this website, does with your data. The short answer: as little as possible.</p>
@@ -44,8 +44,9 @@
     <h2>What Wheelor does on your PC</h2>
     <ul>
       <li><strong>Settings.</strong> Your wheels, actions and preferences are saved in <code>%APPDATA%\Wheelor\config.toml</code> (in the Microsoft Store version, in the private folder Windows keeps for the app). If Wheelor ever closes because of an unexpected error, it adds a short technical note, with version, time and error, to <code>crash.log</code> in the same folder. These files stay on your PC, and you can read, edit or delete them at any time.</li>
-      <li><strong>Keyboard and mouse.</strong> Wheelor waits for the shortcut you chose through the standard Windows hotkey feature. While the wheel is open, and while you record a key combination in Settings, it reads the keys and mouse movements needed to pick an action. This happens in memory and in the moment: Wheelor doesn't record what you type, and doesn't save or send any input.</li>
-      <li><strong>The app in the foreground.</strong> When you open the wheel, Wheelor checks which program is in front (its file name and window title) to show the wheel you set up for that program and, if your commands use them, to pass them on as the <code>WHEELOR_APP</code> and <code>WHEELOR_TITLE</code> variables. This information isn't saved.</li>
+      <li><strong>Keyboard and mouse.</strong> Wheelor waits for the shortcuts you chose, for the wheel and for your actions, through the standard Windows hotkey feature. While the wheel is open, and while you record a key combination in Settings, it reads the keys and mouse movements needed to pick an action. While one of your actions is running, it only watches for the Esc key, so you can stop it. This happens in memory and in the moment: Wheelor doesn't record what you type, and doesn't save or send any input.</li>
+      <li><strong>The app in the foreground.</strong> When you open the wheel, Wheelor checks which program is in front (its file name and window title) to show the wheel you set up for that program and, if your commands use them, to pass them on to your actions (the <code>{app}</code> and <code>{title}</code> placeholders, the <code>WHEELOR_APP</code> and <code>WHEELOR_TITLE</code> variables). This information isn't saved.</li>
+      <li><strong>Clipboard and selected text.</strong> Only when one of your actions uses them (the <code>{selection}</code> and <code>{clipboard}</code> placeholders, or a Clipboard step), Wheelor reads the clipboard. For <code>{selection}</code> it copies the selected text with Ctrl+C and then puts back what the clipboard held before, keeping it out of the clipboard history. The text you type in an <code>{ask:…}</code> box is handled the same way. It all goes only into that action: Wheelor doesn't save it or send it anywhere.</li>
       <li><strong>Your actions.</strong> You choose the programs, files and websites your actions open and the commands they run. What happens there is up to them and their own privacy policies.</li>
     </ul>
 
@@ -61,7 +62,7 @@
       <li>wheelor.app is hosted on GitHub Pages. When you visit it, GitHub receives technical data such as your IP address and may keep it in its logs for security reasons; I have no access to that data. See the <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>.</li>
       <li>The site uses no cookies, no analytics and no third-party trackers. Fonts and images are served by the site itself.</li>
       <li>If you switch language, your choice is saved in your browser's local storage so your next visit opens in that language. It's never sent anywhere, and you can remove it by clearing this site's data in your browser.</li>
-      <li>The download button takes you to GitHub, where the installer is published.</li>
+      <li>The main button takes you to the Wheelor page on the Microsoft Store, covered by the Microsoft Privacy Statement; the installer link takes you to GitHub, where the installer is published.</li>
     </ul>
 
     <h2>Sharing and selling</h2>
@@ -81,7 +82,7 @@
     <header class="doc-head">
       <span class="eyebrow">PRIVACY</span>
       <h1 class="doc-title">Informativa sulla privacy</h1>
-      <p class="meta">Ultimo aggiornamento: 12 ottobre 2026</p>
+      <p class="meta">Ultimo aggiornamento: 13 ottobre 2026</p>
     </header>
 
     <p class="lead">Questa pagina spiega cosa fa Wheelor, sia l'app sia questo sito, con i tuoi dati. In breve: il meno possibile.</p>
@@ -102,8 +103,9 @@
     <h2>Cosa fa Wheelor sul tuo PC</h2>
     <ul>
       <li><strong>Impostazioni.</strong> Ruote, azioni e preferenze sono salvate in <code>%APPDATA%\Wheelor\config.toml</code> (nella versione del Microsoft Store, nella cartella privata che Windows tiene per l'app). Se Wheelor si chiude per un errore imprevisto, aggiunge una breve nota tecnica, con versione, ora ed errore, a <code>crash.log</code> nella stessa cartella. Questi file restano sul tuo PC e puoi leggerli, modificarli o eliminarli quando vuoi.</li>
-      <li><strong>Tastiera e mouse.</strong> Wheelor attende la scorciatoia che hai scelto tramite la funzione standard di Windows per le scorciatoie globali. Mentre la ruota è aperta, e mentre registri una combinazione di tasti nelle impostazioni, legge i tasti e i movimenti del mouse che servono a scegliere un'azione. Succede in memoria e sul momento: Wheelor non registra ciò che scrivi e non salva né invia nessun input.</li>
-      <li><strong>L'app in primo piano.</strong> Quando apri la ruota, Wheelor guarda quale programma è in primo piano (nome del file e titolo della finestra) per mostrarti la ruota che hai preparato per quel programma e, se i tuoi comandi li usano, per passarli nelle variabili <code>WHEELOR_APP</code> e <code>WHEELOR_TITLE</code>. Queste informazioni non vengono salvate.</li>
+      <li><strong>Tastiera e mouse.</strong> Wheelor attende le scorciatoie che hai scelto, per la ruota e per le tue azioni, tramite la funzione standard di Windows per le scorciatoie globali. Mentre la ruota è aperta, e mentre registri una combinazione di tasti nelle impostazioni, legge i tasti e i movimenti del mouse che servono a scegliere un'azione. Mentre una tua azione è in corso guarda solo il tasto Esc, per permetterti di fermarla. Succede in memoria e sul momento: Wheelor non registra ciò che scrivi e non salva né invia nessun input.</li>
+      <li><strong>L'app in primo piano.</strong> Quando apri la ruota, Wheelor guarda quale programma è in primo piano (nome del file e titolo della finestra) per mostrarti la ruota che hai preparato per quel programma e, se i tuoi comandi li usano, per passarli alle tue azioni (i segnaposto <code>{app}</code> e <code>{title}</code>, le variabili <code>WHEELOR_APP</code> e <code>WHEELOR_TITLE</code>). Queste informazioni non vengono salvate.</li>
+      <li><strong>Appunti e testo selezionato.</strong> Solo quando una tua azione li usa (i segnaposto <code>{selection}</code> e <code>{clipboard}</code>, o un passo Appunti), Wheelor legge gli appunti. Per <code>{selection}</code> copia il testo selezionato con Ctrl+C e poi rimette negli appunti quello che c'era prima, senza aggiungerlo alla cronologia degli appunti. Lo stesso vale per il testo che scrivi in una finestra <code>{ask:…}</code>. Tutto finisce solo in quell'azione: Wheelor non lo salva e non lo invia da nessuna parte.</li>
       <li><strong>Le tue azioni.</strong> Programmi, file e siti aperti dalle tue azioni, e i comandi che eseguono, li scegli tu. Quello che succede lì dipende da loro e dalle loro informative.</li>
     </ul>
 
@@ -119,7 +121,7 @@
       <li>wheelor.app è ospitato su GitHub Pages. Quando lo visiti, GitHub riceve dati tecnici come il tuo indirizzo IP e può conservarli nei suoi log per motivi di sicurezza; io non ho accesso a questi dati. Vedi l'<a href="https://docs.github.com/it/site-policy/privacy-policies/github-general-privacy-statement">Informativa sulla privacy di GitHub</a>.</li>
       <li>Il sito non usa cookie, statistiche né sistemi di tracciamento di terze parti. Caratteri e immagini arrivano dal sito stesso.</li>
       <li>Se cambi lingua, la scelta viene salvata nella memoria locale del browser, così la visita successiva si apre nella stessa lingua. Non viene inviata da nessuna parte e puoi cancellarla eliminando i dati di questo sito dal browser.</li>
-      <li>Il pulsante di download porta su GitHub, dove è pubblicato l'installer.</li>
+      <li>Il pulsante principale porta alla pagina di Wheelor nel Microsoft Store, a cui si applica l'Informativa sulla privacy di Microsoft; il collegamento all'installer porta su GitHub, dove è pubblicato l'installer.</li>
     </ul>
 
     <h2>Condivisione e vendita</h2>

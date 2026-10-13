@@ -9,6 +9,7 @@
   - {{>nome}}: il contenuto di web\src\partials\nome.html (inizio di <head>, intestazione, piè di pagina);
   - {{VERSION}}, {{SIZE}}, {{DOWNLOAD_URL}}, {{BETA_TAG}}: dati di latest.json, che scrive
     app\installer\build.ps1 e che viene allegato a ogni release;
+  - {{STORE_URL}}: la scheda di Wheelor nel Microsoft Store, nella lingua della pagina;
   - {{LANG}} (en o it), {{ROOT}} (percorso della radice del sito: vuoto o ../), {{HOME}} (la pagina
     principale: vuoto se è questa), {{SWITCH}} (la stessa pagina nell'altra lingua), {{YEAR}}
     e {{HEAD_META}} (tag per motori di ricerca e anteprime): li calcola questo script.
@@ -40,9 +41,13 @@ $utf8 = New-Object Text.UTF8Encoding $false
 
 # La prima è la lingua della radice del sito e quella per chi non parla nessuna delle due.
 $languages = @(
-    [pscustomobject]@{ Code = 'en'; Dir = '';    Locale = 'en_US'; Decimal = '.' }
-    [pscustomobject]@{ Code = 'it'; Dir = 'it/'; Locale = 'it_IT'; Decimal = ',' }
+    [pscustomobject]@{ Code = 'en'; Dir = '';    Locale = 'en_US'; Decimal = '.'; Store = 'en-US' }
+    [pscustomobject]@{ Code = 'it'; Dir = 'it/'; Locale = 'it_IT'; Decimal = ','; Store = 'it-IT' }
 )
+
+# La scheda dello Store (Partner Center > l'app > Gestione prodotto > Identità del prodotto > ID dello Store).
+# mode=direct: su Windows apre subito l'app Microsoft Store, altrove resta la pagina web.
+$storeId = '9N327XDXW02L'
 
 if (-not (Test-Path $Release)) {
     throw "Non trovo ${Release}: compila prima l'installer (app\installer\build.ps1) oppure indica -Release"
@@ -134,6 +139,7 @@ function Get-HeadMeta([string]$Page, $Language, [string]$Path) {
             softwareVersion     = $version
             fileSize            = $size
             offers              = [ordered]@{ '@type' = 'Offer'; price = '0'; priceCurrency = 'EUR' }
+            installUrl          = "https://apps.microsoft.com/detail/$storeId"
         }
         if ($isPublic) { $app.downloadUrl = $installer.url }
         $json = ($app | ConvertTo-Json -Compress).Replace('</', '<\/')
@@ -162,6 +168,7 @@ foreach ($template in Get-ChildItem $src -Filter *.html -File) {
             '{{VERSION}}'      = Html $version
             '{{SIZE}}'         = Html $size.Replace('.', $language.Decimal)
             '{{DOWNLOAD_URL}}' = Html $(if ($isPublic) { $installer.url } else { $root + $installer.url })
+            '{{STORE_URL}}'    = Html "https://apps.microsoft.com/detail/${storeId}?hl=$($language.Store)&mode=direct"
             '{{BETA_TAG}}'     = if ($isBeta) { '<span class="badge-tag badge-beta">BETA</span>' } else { '' }
             '{{YEAR}}'         = (Get-Date).Year
             '{{HEAD_META}}'    = Get-HeadMeta $page $language $path

@@ -22,6 +22,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
 use windows::Win32::Foundation::*;
+use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::CreateMutexW;
 use windows::Win32::UI::HiDpi::*;
@@ -36,6 +37,10 @@ pub const WM_RELOAD_CONFIG: u32 = WM_APP + 20;
 const WM_OPEN_SETTINGS: u32 = WM_APP + 21;
 /// Inviato dal thread che controlla gli aggiornamenti quando trova una nuova versione (in `FOUND`).
 const WM_UPDATE_FOUND: u32 = WM_APP + 22;
+/// Inviato dall'esecutore delle azioni quando ne inizia una (wparam 1) e quando la finisce (0).
+const WM_ACTIONS_BUSY: u32 = WM_APP + 23;
+/// `dwData` del WM_COPYDATA con cui `wheelor.exe --run <id>` chiede di eseguire un'azione.
+const COPYDATA_RUN: usize = 0x5752_554E; // "WRUN"
 
 /// Timer che riprova ad aggiungere l'icona nella tray: all'accesso a Windows
 /// la barra delle applicazioni potrebbe non essere ancora pronta.
@@ -80,6 +85,8 @@ thread_local! {
 //   wheelor.exe --settings    finestra delle impostazioni (processo separato)
 //               --update      (con --settings) propone subito di installare la nuova versione
 //   wheelor.exe --quit        chiude Wheelor in esecuzione (installer, script)
+//   wheelor.exe --run <id>    esegue l'azione <id> della libreria (Stream Deck, collegamenti, script)
+//   wheelor.exe --ask <testo> chiede un testo e lo scrive su stdout (i segnaposto {ask:…}, vedi actions)
 fn main() -> Result<()> {
     crash::install();
     // La lingua di Windows finché non si legge la configurazione (che può sceglierne un'altra):
@@ -94,6 +101,14 @@ fn main() -> Result<()> {
     }
     if has("--quit") {
         quit_running();
+        return Ok(());
+    }
+    let after = |flag: &str| args.iter().position(|a| a == flag).map(|i| args.get(i + 1).cloned().unwrap_or_default());
+    if let Some(question) = after("--ask") {
+        std::process::exit(settings::ask(&question));
+    }
+    if let Some(id) = after("--run") {
+        run_action(&id);
         return Ok(());
     }
 
@@ -125,6 +140,11 @@ fn main() -> Result<()> {
     let instance: HINSTANCE = unsafe { GetModuleHandleW(None)? }.into();
     let hwnd = create_main_window(instance)?;
     overlay::init(instance)?;
+    // Mentre un'azione è in corso, Esc la ferma: l'hook che lo guarda vive su questo thread.
+    let target = hwnd.0 as usize; // un HWND non passa tra thread: ne passiamo il valore
+    actions::on_busy(move |busy| unsafe {
+        let _ = PostMessageW(Some(HWND(target as *mut _)), WM_ACTIONS_BUSY, WPARAM(busy as usize), LPARAM(0));
+    });
     apply_config(hwnd);
     add_tray(hwnd);
 
@@ -200,6 +220,35 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
             }
             LRESULT(0)
         }
+        // La scorciatoia di un'azione: la esegue senza aprire la ruota.
+        WM_HOTKEY => {
+            if let Some(id) = hotkey::action_for(wparam.0 as i32) {
+                input::send_mask_key();
+                if config::modified() != CONFIG_LOADED.get() {
+                    apply_config(hwnd);
+                }
+                wheel::run_action(hwnd, &id);
+            }
+            LRESULT(0)
+        }
+        WM_ACTIONS_BUSY => {
+            input::watch_escape(wparam.0 != 0);
+            LRESULT(0)
+        }
+        // `wheelor.exe --run <id>` da un'altra copia: l'id arriva come testo UTF-16.
+        WM_COPYDATA => {
+            let data = unsafe { &*(lparam.0 as *const COPYDATASTRUCT) };
+            if data.dwData != COPYDATA_RUN || data.lpData.is_null() {
+                return LRESULT(0);
+            }
+            let units = unsafe { std::slice::from_raw_parts(data.lpData as *const u16, data.cbData as usize / 2) };
+            let id = String::from_utf16_lossy(units);
+            if config::modified() != CONFIG_LOADED.get() {
+                apply_config(hwnd);
+            }
+            wheel::run_action(hwnd, &id);
+            LRESULT(1)
+        }
         input::WM_WHEEL_MOVE..=input::WM_WHEEL_CONFIRM => {
             wheel::on_input(hwnd, msg, wparam, lparam);
             LRESULT(0)
@@ -268,6 +317,10 @@ fn apply_config(hwnd: HWND) {
             if let Err(e) = hotkey::register(hwnd, &config.hotkey) {
                 tray::notify(hwnd, tr!("Scorciatoia non valida", "Invalid shortcut"), &e);
             }
+            let problems = hotkey::register_actions(hwnd, &config.actions, &config.hotkey);
+            if !problems.is_empty() {
+                tray::notify(hwnd, hotkey::problems_title(), &problems.join("\n"));
+            }
             // La versione dello Store la aggiorna lo Store.
             schedule_update_checks(hwnd, config.check_updates && !package::is_store());
             wheel::set_config(config);
@@ -314,6 +367,34 @@ fn add_tray(hwnd: HWND) {
             SetTimer(Some(hwnd), TIMER_TRAY, TRAY_RETRY_MS, None);
         } else if tries >= TRAY_ATTEMPTS {
             let _ = KillTimer(Some(hwnd), TIMER_TRAY);
+        }
+    }
+}
+
+/// `--run <id>`: se Wheelor è attivo gli chiede di eseguire l'azione (così Esc la ferma e gli
+/// errori arrivano come notifica); altrimenti la esegue qui e aspetta che finisca.
+fn run_action(id: &str) {
+    if let Ok(hwnd) = unsafe { FindWindowW(MAIN_CLASS, PCWSTR::null()) } {
+        let units: Vec<u16> = id.encode_utf16().collect();
+        let data = COPYDATASTRUCT { dwData: COPYDATA_RUN, cbData: (units.len() * 2) as u32, lpData: units.as_ptr() as *mut _ };
+        unsafe {
+            SendMessageW(hwnd, WM_COPYDATA, Some(WPARAM(0)), Some(LPARAM(&data as *const _ as isize)));
+        }
+        return;
+    }
+    let result = config::load().and_then(|config| {
+        i18n::set(config.language);
+        let item = config.action(id).ok_or_else(|| {
+            trf!("Nella libreria non c'è un'azione con id \"{id}\".", "There's no action with the id \"{id}\" in the library.")
+        })?;
+        let mut context = actions::Context::capture();
+        context.profile = config.wheel_for_app(&context.app).name.clone();
+        actions::run_here(actions::Job::new(item, &config.actions, context)).map_err(|f| format!("{}\n{}", f.title, f.message))
+    });
+    if let Err(e) = result {
+        let text = windows::core::HSTRING::from(e);
+        unsafe {
+            MessageBoxW(None, &text, w!("Wheelor"), MB_OK | MB_ICONERROR);
         }
     }
 }

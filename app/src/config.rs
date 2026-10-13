@@ -4,17 +4,21 @@
 //! basta annotarle con `#[derive(Serialize, Deserialize)]`.
 //!
 //! Il modello ha due parti:
-//! - la **libreria** (`[[action]]`): tutte le azioni salvate, senza limite di numero;
+//! - la **libreria** (`[[action]]`): tutte le azioni salvate, senza limite di numero. Ogni azione
+//!   è una sequenza di passi (aprire, premere tasti, aspettare…) eseguiti uno dopo l'altro;
 //! - le **ruote** (`[[wheel]]`): ognuna mostra fino a 8 elementi, che sono azioni della
 //!   libreria o altre ruote (sottomenu). La ruota "main" è quella principale; una ruota con
 //!   `apps` è il profilo di quelle app e si apre al posto della principale.
+//!
+//! Chiavi e valori del file sono in inglese, qualunque sia la lingua dell'interfaccia.
 
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use serde::{Deserialize, Serialize};
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::i18n::Language;
 use crate::{tr, trf};
@@ -57,24 +61,114 @@ pub struct Config {
     pub wheels: Vec<Wheel>,
 }
 
-/// Un'azione della libreria.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// Un'azione della libreria: una sequenza di passi.
+///
+/// Nel file un'azione con un solo passo si scrive come sempre, con i campi del passo (type,
+/// command, …) allo stesso livello di id e label; con più passi, ognuno è un `[[action.step]]`:
+///
+/// ```toml
+/// [[action]]
+/// id = "meeting"
+/// label = "Inizio riunione"
+///
+/// [[action.step]]
+/// type = "open"
+/// target = "https://teams.microsoft.com/…"
+///
+/// [[action.step]]
+/// type = "wait_window"
+/// app = "ms-teams.exe"
+/// ```
+#[derive(Debug, Clone, PartialEq)]
 pub struct Item {
     /// Identificativo stabile, usato dalle ruote per riferirsi all'azione.
     pub id: String,
     pub label: String,
     /// Codice esadecimale del glifo Segoe Fluent Icons, es. "E756".
-    #[serde(default)]
     pub icon: String,
-    /// `flatten`: i campi dell'azione (type, command, …) stanno allo stesso livello di id e label.
-    #[serde(flatten)]
-    pub action: Action,
+    /// Combinazione che esegue l'azione senza aprire la ruota (vuota = nessuna).
+    pub hotkey: String,
+    /// I passi, eseguiti uno dopo l'altro: sempre almeno uno.
+    pub steps: Vec<Step>,
 }
 
-/// Cosa fa un'azione. Nel file diventa `type = "command"`, `type = "open"`, …
+impl Item {
+    pub fn new(label: &str, icon: &str, steps: Vec<Step>) -> Self {
+        Self { id: String::new(), label: label.into(), icon: icon.into(), hotkey: String::new(), steps }
+    }
+
+    /// Le azioni della libreria eseguite dai passi "Esegui azione".
+    pub fn runs(&self) -> impl Iterator<Item = &str> {
+        self.steps.iter().filter_map(|step| match step {
+            Step::Run { action } => Some(action.as_str()),
+            _ => None,
+        })
+    }
+}
+
+impl Serialize for Item {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Due forme: un passo solo, "appiattito" accanto a id e label (come nelle prime versioni),
+        // oppure l'elenco dei passi in `[[action.step]]`.
+        #[derive(Serialize)]
+        struct Single<'a> {
+            id: &'a str,
+            label: &'a str,
+            icon: &'a str,
+            #[serde(skip_serializing_if = "str::is_empty")]
+            hotkey: &'a str,
+            #[serde(flatten)]
+            step: &'a Step,
+        }
+        #[derive(Serialize)]
+        struct Steps<'a> {
+            id: &'a str,
+            label: &'a str,
+            icon: &'a str,
+            #[serde(skip_serializing_if = "str::is_empty")]
+            hotkey: &'a str,
+            #[serde(rename = "step")]
+            steps: &'a [Step],
+        }
+        let (id, label, icon, hotkey) = (self.id.as_str(), self.label.as_str(), self.icon.as_str(), self.hotkey.as_str());
+        match self.steps.as_slice() {
+            [step] => Single { id, label, icon, hotkey, step }.serialize(serializer),
+            steps => Steps { id, label, icon, hotkey, steps }.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Item {
+    /// Legge prima tutta la tabella, poi decide quale delle due forme è: così gli errori di un
+    /// passo arrivano con il loro messaggio preciso ("missing field `target`", …).
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let mut table = toml::Table::deserialize(deserializer)?;
+        let mut text = |key: &str, required: bool| match table.remove(key) {
+            Some(toml::Value::String(value)) => Ok(value),
+            Some(_) => Err(D::Error::custom(format!("`{key}` must be a string"))),
+            None if required => Err(D::Error::custom(format!("missing field `{key}`"))),
+            None => Ok(String::new()),
+        };
+        let id = text("id", true)?;
+        let label = text("label", true)?;
+        let icon = text("icon", false)?;
+        let hotkey = text("hotkey", false)?;
+        let error = |e: toml::de::Error| D::Error::custom(format!("action `{id}`: {e}"));
+        if table.contains_key("step") && table.contains_key("type") {
+            return Err(D::Error::custom(format!("action `{id}`: use either `type` or `[[action.step]]`, not both")));
+        }
+        let steps = match table.remove("step") {
+            Some(steps) => Vec::<Step>::deserialize(steps).map_err(error)?,
+            None => vec![Step::deserialize(toml::Value::Table(table)).map_err(error)?],
+        };
+        Ok(Item { id, label, icon, hotkey, steps })
+    }
+}
+
+/// Cosa fa un passo di un'azione. Nel file diventa `type = "command"`, `type = "open"`, …
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum Action {
+pub enum Step {
     /// Comando da terminale.
     Command {
         command: String,
@@ -87,6 +181,10 @@ pub enum Action {
         cwd: String,
         #[serde(default, skip_serializing_if = "is_false")]
         admin: bool,
+        /// Con la finestra visibile: il passo successivo aspetta che il comando finisca.
+        /// Nascosto, il comando si aspetta sempre (serve a leggerne il risultato e gli errori).
+        #[serde(default, skip_serializing_if = "is_false")]
+        wait: bool,
     },
     /// Apre un'app, un file, una cartella o un URL.
     Open {
@@ -98,6 +196,155 @@ pub enum Action {
     Keys { keys: String },
     /// Scrive un testo nell'app in primo piano.
     Text { text: String },
+    /// Aspetta un po' prima del passo successivo.
+    Wait { seconds: f32 },
+    /// Aspetta che un'app (o una finestra con quel titolo) sia in primo piano; se è già aperta
+    /// ma dietro ad altre, la porta davanti.
+    WaitWindow {
+        /// Eseguibile, come per le app collegate: "code.exe", "code" o il percorso completo.
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        app: String,
+        /// Parte del titolo della finestra (maiuscole e minuscole non contano).
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        title: String,
+        /// Secondi dopo i quali l'azione si ferma con un errore.
+        #[serde(default = "default_timeout", skip_serializing_if = "is_default_timeout")]
+        timeout: f32,
+    },
+    /// Fa qualcosa alla finestra in primo piano.
+    Window {
+        #[serde(rename = "do")]
+        op: WindowOp,
+    },
+    /// Funzioni di Windows: blocco, volume, musica…
+    System {
+        #[serde(rename = "do")]
+        op: SystemOp,
+    },
+    /// Appunti: copia la selezione, incolla, o mette un testo negli appunti.
+    Clipboard {
+        #[serde(rename = "do")]
+        op: ClipboardOp,
+        /// Il testo da mettere negli appunti (solo per `set`).
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        text: String,
+    },
+    /// Esegue un'altra azione della libreria, con tutti i suoi passi.
+    Run { action: String },
+}
+
+impl Step {
+    /// Il tipo di passo, come appare nelle impostazioni.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Step::Open { .. } => tr!("Apri", "Open"),
+            Step::Keys { .. } => tr!("Tasti", "Keys"),
+            Step::Text { .. } => tr!("Testo", "Text"),
+            Step::Command { .. } => tr!("Comando", "Command"),
+            Step::Wait { .. } => tr!("Attendi", "Wait"),
+            Step::WaitWindow { .. } => tr!("Aspetta la finestra", "Wait for window"),
+            Step::Window { .. } => tr!("Finestra", "Window"),
+            Step::System { .. } => tr!("Sistema", "System"),
+            Step::Clipboard { .. } => tr!("Appunti", "Clipboard"),
+            Step::Run { .. } => tr!("Esegui azione", "Run action"),
+        }
+    }
+
+    /// I campi di testo del passo, dove possono esserci segnaposto.
+    pub fn texts(&self) -> Vec<&str> {
+        match self {
+            Step::Command { command, cwd, .. } => vec![command, cwd],
+            Step::Open { target, args } => vec![target, args],
+            Step::Text { text } | Step::Clipboard { text, .. } => vec![text],
+            Step::WaitWindow { app, title, .. } => vec![app, title],
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// Cosa fare alla finestra. Tutte agiscono su quella in primo piano, tranne `focus`, che torna a
+/// quella che era in primo piano quando si è aperta la ruota.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WindowOp {
+    #[default]
+    Focus,
+    Minimize,
+    Maximize,
+    Restore,
+    LeftHalf,
+    RightHalf,
+    AlwaysOnTop,
+    Close,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SystemOp {
+    #[default]
+    Lock,
+    Sleep,
+    ScreenOff,
+    VolumeUp,
+    VolumeDown,
+    Mute,
+    PlayPause,
+    NextTrack,
+    PreviousTrack,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClipboardOp {
+    /// Copia il testo selezionato nell'app in primo piano (Ctrl+C, aspettando che arrivi).
+    #[default]
+    Copy,
+    /// Incolla (Ctrl+V).
+    Paste,
+    /// Mette negli appunti `text`, dopo averne sostituito i segnaposto.
+    Set,
+}
+
+impl WindowOp {
+    pub const ALL: [WindowOp; 8] = [
+        WindowOp::Focus,
+        WindowOp::Minimize,
+        WindowOp::Maximize,
+        WindowOp::Restore,
+        WindowOp::LeftHalf,
+        WindowOp::RightHalf,
+        WindowOp::AlwaysOnTop,
+        WindowOp::Close,
+    ];
+}
+
+impl SystemOp {
+    pub const ALL: [SystemOp; 9] = [
+        SystemOp::Lock,
+        SystemOp::Sleep,
+        SystemOp::ScreenOff,
+        SystemOp::VolumeUp,
+        SystemOp::VolumeDown,
+        SystemOp::Mute,
+        SystemOp::PlayPause,
+        SystemOp::NextTrack,
+        SystemOp::PreviousTrack,
+    ];
+}
+
+impl ClipboardOp {
+    pub const ALL: [ClipboardOp; 3] = [ClipboardOp::Copy, ClipboardOp::Paste, ClipboardOp::Set];
+}
+
+/// Quanto aspetta al massimo "Aspetta la finestra", se non è scritto (secondi).
+pub const DEFAULT_TIMEOUT: f32 = 10.0;
+
+fn default_timeout() -> f32 {
+    DEFAULT_TIMEOUT
+}
+
+fn is_default_timeout(value: &f32) -> bool {
+    *value == DEFAULT_TIMEOUT
 }
 
 /// Dimensione della ruota: la misura normale, ingrandita del 15% o del 30%.
@@ -314,7 +561,7 @@ impl Wheel {
 
 /// Confronta un'app scritta dall'utente con il percorso dell'eseguibile, ignorando maiuscole:
 /// "code.exe" e "code" valgono per qualunque Code.exe; un percorso completo solo per quello.
-fn app_matches(pattern: &str, path: &str) -> bool {
+pub fn app_matches(pattern: &str, path: &str) -> bool {
     let pattern = pattern.trim().to_lowercase();
     let path = path.to_lowercase();
     if pattern.is_empty() {
@@ -330,46 +577,53 @@ fn app_matches(pattern: &str, path: &str) -> bool {
 impl Default for Config {
     /// La configurazione di esempio del primo avvio, con i nomi nella lingua attuale.
     fn default() -> Self {
-        let item = |id: &str, label: &str, icon: &str, action| Item { id: id.into(), label: label.into(), icon: icon.into(), action };
-        let open = |target: &str| Action::Open { target: target.into(), args: String::new() };
-        let keys = |keys: &str| Action::Keys { keys: keys.into() };
+        // Gli id sono in inglese, come tutto il file; i nomi nella lingua dell'interfaccia.
+        let item = |id: &str, label: &str, icon: &str, steps: Vec<Step>| Item { id: id.into(), ..Item::new(label, icon, steps) };
+        let open = |target: &str| Step::Open { target: target.into(), args: String::new() };
+        let keys = |keys: &str| Step::Keys { keys: keys.into() };
+        let system = |op| Step::System { op };
         let actions = vec![
-            item("terminale", tr!("Terminale", "Terminal"), "E756", open("wt.exe")),
-            item("browser", "Browser", "E774", open("https://www.google.com")),
-            item("esplora-file", tr!("Esplora file", "File Explorer"), "E8B7", open("explorer.exe")),
-            item("screenshot", "Screenshot", "E722", keys("Win+Shift+S")),
-            item("copia", tr!("Copia", "Copy"), "E8C8", keys("Ctrl+C")),
-            item("incolla", tr!("Incolla", "Paste"), "E77F", keys("Ctrl+V")),
+            item("terminal", tr!("Terminale", "Terminal"), "E756", vec![open("wt.exe")]),
+            item("browser", "Browser", "E774", vec![open("https://www.google.com")]),
+            item("file-explorer", tr!("Esplora file", "File Explorer"), "E8B7", vec![open("explorer.exe")]),
+            item("screenshot", "Screenshot", "E722", vec![keys("Win+Shift+S")]),
+            item("copy", tr!("Copia", "Copy"), "E8C8", vec![keys("Ctrl+C")]),
+            item("paste", tr!("Incolla", "Paste"), "E77F", vec![keys("Ctrl+V")]),
+            item("lock-pc", tr!("Blocca PC", "Lock PC"), "E72E", vec![system(SystemOp::Lock)]),
+            item("play-pause", tr!("Play/Pausa", "Play/Pause"), "E768", vec![system(SystemOp::PlayPause)]),
+            item("next-track", tr!("Successivo", "Next"), "E893", vec![system(SystemOp::NextTrack)]),
+            item("previous-track", tr!("Precedente", "Previous"), "E892", vec![system(SystemOp::PreviousTrack)]),
+            item("volume-up", "Volume +", "E995", vec![system(SystemOp::VolumeUp)]),
+            item("volume-down", "Volume −", "E993", vec![system(SystemOp::VolumeDown)]),
+            item("mute", tr!("Muto", "Mute"), "E74F", vec![system(SystemOp::Mute)]),
+            // Due esempi di ciò che si può fare con i segnaposto e i passi.
             item(
-                "blocca-pc",
-                tr!("Blocca PC", "Lock PC"),
-                "E72E",
-                Action::Command {
-                    command: "rundll32.exe user32.dll,LockWorkStation".into(),
-                    shell: Shell::Cmd,
-                    window: WindowMode::Hidden,
-                    cwd: String::new(),
-                    admin: false,
-                },
+                "search-selection",
+                tr!("Cerca la selezione", "Search the selection"),
+                "E721",
+                vec![open("https://www.google.com/search?q={selection}")],
             ),
-            item("play-pausa", tr!("Play/Pausa", "Play/Pause"), "E768", keys("MediaPlayPause")),
-            item("brano-successivo", tr!("Successivo", "Next"), "E893", keys("MediaNext")),
-            item("brano-precedente", tr!("Precedente", "Previous"), "E892", keys("MediaPrev")),
-            item("volume-su", "Volume +", "E995", keys("VolumeUp")),
-            item("volume-giu", "Volume −", "E993", keys("VolumeDown")),
-            item("muto", tr!("Muto", "Mute"), "E74F", keys("VolumeMute")),
+            item(
+                "paste-plain",
+                tr!("Incolla come testo semplice", "Paste as plain text"),
+                "E8E9",
+                vec![
+                    Step::Clipboard { op: ClipboardOp::Set, text: "{clipboard}".into() },
+                    Step::Clipboard { op: ClipboardOp::Paste, text: String::new() },
+                ],
+            ),
         ];
 
         let action = |id: &str| Slot::Action(id.into());
         let mut main = Wheel::new(MAIN_WHEEL, main_name());
-        main.slots = ["terminale", "browser", "esplora-file", "screenshot", "copia", "incolla"].map(action).to_vec();
+        main.slots = ["terminal", "browser", "file-explorer", "screenshot", "copy", "paste"].map(action).to_vec();
         main.slots.push(Slot::Wheel("media".into()));
-        main.slots.push(action("blocca-pc"));
+        main.slots.push(action("lock-pc"));
 
         let mut media = Wheel::new("media", "Media");
         media.icon = "E8D6".into();
         media.slots =
-            ["play-pausa", "brano-successivo", "volume-su", "muto", "volume-giu", "brano-precedente"].map(action).to_vec();
+            ["play-pause", "next-track", "volume-up", "mute", "volume-down", "previous-track"].map(action).to_vec();
 
         Self { actions, wheels: vec![main, media], ..Self::empty() }
     }
@@ -481,7 +735,44 @@ impl Config {
                 wheel.name
             ));
         }
+
+        for item in &self.actions {
+            if item.steps.is_empty() {
+                return Err(trf!("L'azione \"{}\" non ha passi", "The action \"{}\" has no steps", item.label));
+            }
+            if let Some(id) = item.runs().find(|id| !ids.contains(id)) {
+                return Err(trf!(
+                    "L'azione \"{}\" esegue l'azione \"{id}\", che non esiste",
+                    "The action \"{}\" runs the action \"{id}\", which doesn't exist",
+                    item.label
+                ));
+            }
+        }
+        if let Some(item) = self.actions.iter().find(|a| self.runs_into(&a.id, &a.id)) {
+            return Err(trf!(
+                "L'azione \"{}\" esegue sé stessa tramite i suoi passi",
+                "The action \"{}\" runs itself through its steps",
+                item.label
+            ));
+        }
         Ok(())
+    }
+
+    /// L'azione `from`, con i suoi passi "Esegui azione" (anche indiretti), esegue l'azione `to`?
+    /// Come `reaches` per le ruote: impedisce i cicli.
+    pub fn runs_into(&self, from: &str, to: &str) -> bool {
+        let runs = |id: &str| self.action(id).into_iter().flat_map(Item::runs);
+        let mut seen = HashSet::new();
+        let mut pending: Vec<&str> = runs(from).collect();
+        while let Some(id) = pending.pop() {
+            if id == to {
+                return true;
+            }
+            if seen.insert(id) {
+                pending.extend(runs(id));
+            }
+        }
+        false
     }
 
     /// Dalla ruota `from`, aprendo sottomenu, si arriva alla ruota `to`?
@@ -524,7 +815,7 @@ pub fn unique_id(label: &str, taken: impl Fn(&str) -> bool) -> String {
         }
     }
     let base = base.trim_end_matches('-');
-    let base = if base.is_empty() { "azione" } else { base };
+    let base = if base.is_empty() { "action" } else { base };
     if !taken(base) {
         return base.to_string();
     }
@@ -592,7 +883,7 @@ struct LegacySlice {
     label: String,
     #[serde(default)]
     icon: String,
-    action: Action,
+    action: Step,
 }
 
 /// Ogni vecchio spicchio diventa un'azione della libreria; i primi 8 formano la ruota principale.
@@ -601,7 +892,7 @@ fn migrate(config: Config, slices: Vec<LegacySlice>) -> Config {
     let mut actions: Vec<Item> = Vec::new();
     for slice in slices {
         let id = unique_id(&slice.label, |id| actions.iter().any(|a| a.id == id));
-        actions.push(Item { id, label: slice.label, icon: slice.icon, action: slice.action });
+        actions.push(Item { id, ..Item::new(&slice.label, &slice.icon, vec![slice.action]) });
     }
     let mut main = Wheel::new(MAIN_WHEEL, main_name());
     main.slots = actions.iter().take(MAX_SLOTS).map(|a| Slot::Action(a.id.clone())).collect();
@@ -671,8 +962,28 @@ mod tests {
     #[test]
     fn actions_are_written_flat() {
         let text = toml::to_string_pretty(&Config::default()).unwrap();
-        assert!(text.contains("[[action]]\nid = \"terminale\"\nlabel = \"Terminale\"\nicon = \"E756\"\ntype = \"open\""));
+        assert!(text.contains("[[action]]\nid = \"terminal\"\nlabel = \"Terminale\"\nicon = \"E756\"\ntype = \"open\""));
         assert!(text.contains("\"wheel:media\""));
+    }
+
+    #[test]
+    fn several_steps_are_written_as_tables() {
+        let mut item = Item::new("Riunione", "E8F2", vec![
+            Step::Open { target: "ms-teams:".into(), args: String::new() },
+            Step::Wait { seconds: 1.5 },
+            Step::WaitWindow { app: "ms-teams.exe".into(), title: String::new(), timeout: DEFAULT_TIMEOUT },
+            Step::Window { op: WindowOp::LeftHalf },
+            Step::Keys { keys: "Ctrl+Shift+M".into() },
+        ]);
+        item.id = "meeting".into();
+        item.hotkey = "Ctrl+Alt+M".into();
+        let config = Config { actions: vec![item], ..Config::empty() };
+        let text = toml::to_string_pretty(&config).unwrap();
+        assert!(text.contains("[[action]]\nid = \"meeting\"\nlabel = \"Riunione\"\nicon = \"E8F2\"\nhotkey = \"Ctrl+Alt+M\"\n"));
+        assert!(text.contains("[[action.step]]\ntype = \"wait\"\nseconds = 1.5\n"));
+        assert!(text.contains("[[action.step]]\ntype = \"wait_window\"\napp = \"ms-teams.exe\"\n\n"));
+        assert!(text.contains("[[action.step]]\ntype = \"window\"\ndo = \"left_half\"\n"));
+        assert_eq!(parse(&text).unwrap().0.actions, config.actions);
     }
 
     #[test]
@@ -683,21 +994,46 @@ mod tests {
             label = "Ciao"
             type = "command"
             command = "echo ciao"
+
+            [[action]]
+            id = "pausa"
+            label = "Pausa"
+            [[action.step]]
+            type = "wait"
+            seconds = 2
+            [[action.step]]
+            type = "wait_window"
+            title = "Blocco note"
         "#;
         let (config, _) = parse(text).unwrap();
         assert_eq!(config.hotkey, "Ctrl+Alt+W");
-        assert_eq!(
-            config.actions[0].action,
-            Action::Command {
-                command: "echo ciao".into(),
-                shell: Shell::Powershell,
-                window: WindowMode::Hidden,
-                cwd: String::new(),
-                admin: false,
-            }
-        );
+        assert_eq!(config.actions[0].steps, vec![Step::Command {
+            command: "echo ciao".into(),
+            shell: Shell::Powershell,
+            window: WindowMode::Hidden,
+            cwd: String::new(),
+            admin: false,
+            wait: false,
+        }]);
+        assert_eq!(config.actions[0].icon, "");
+        assert_eq!(config.actions[1].steps, vec![
+            Step::Wait { seconds: 2.0 },
+            Step::WaitWindow { app: String::new(), title: "Blocco note".into(), timeout: DEFAULT_TIMEOUT },
+        ]);
         // La ruota principale viene creata anche se il file non la contiene.
         assert!(config.wheels[0].is_main());
+    }
+
+    #[test]
+    fn step_errors_are_precise() {
+        let error = parse("[[action]]\nid = \"x\"\nlabel = \"X\"\ntype = \"open\"\n").unwrap_err().to_string();
+        assert!(error.contains("action `x`") && error.contains("target"), "{error}");
+        let error = parse("[[action]]\nid = \"x\"\nlabel = \"X\"\ntype = \"fly\"\n").unwrap_err().to_string();
+        assert!(error.contains("fly"), "{error}");
+        let error = parse("[[action]]\nlabel = \"X\"\ntype = \"keys\"\nkeys = \"A\"\n").unwrap_err().to_string();
+        assert!(error.contains("id"), "{error}");
+        let text = "[[action]]\nid = \"x\"\nlabel = \"X\"\ntype = \"keys\"\nkeys = \"A\"\n[[action.step]]\ntype = \"keys\"\nkeys = \"B\"\n";
+        assert!(parse(text).unwrap_err().to_string().contains("not both"));
     }
 
     #[test]
@@ -717,13 +1053,14 @@ mod tests {
         assert_eq!(config.wheels.len(), 1);
         assert_eq!(config.wheels[0].slots.len(), MAX_SLOTS);
         assert_eq!(config.wheels[0].slots[1], Slot::Action("uguale-2".into()));
+        assert_eq!(config.actions[0].steps, vec![Step::Keys { keys: "F1".into() }]);
         config.check().unwrap();
     }
 
     #[test]
     fn check_finds_problems() {
         let mut config = Config::default();
-        config.wheels[0].slots.push(Slot::Action("copia".into()));
+        config.wheels[0].slots.push(Slot::Action("copy".into()));
         assert!(config.check().unwrap_err().contains("più di 8"));
 
         let mut config = Config::default();
@@ -735,6 +1072,23 @@ mod tests {
         config.wheels[1].slots[0] = Slot::Wheel(MAIN_WHEEL.into());
         assert!(config.check().unwrap_err().contains("sé stessa"));
         assert!(config.reaches("media", "media"));
+
+        let mut config = Config::default();
+        config.actions[0].steps.clear();
+        assert!(config.check().unwrap_err().contains("non ha passi"));
+
+        let mut config = Config::default();
+        config.actions[0].steps.push(Step::Run { action: "non-esiste".into() });
+        assert!(config.check().unwrap_err().contains("non esiste"));
+
+        // Copia esegue Incolla, che esegue Copia: ciclo.
+        let mut config = Config::default();
+        config.actions[4].steps.push(Step::Run { action: "paste".into() });
+        config.check().unwrap();
+        config.actions[5].steps.push(Step::Run { action: "copy".into() });
+        assert!(config.check().unwrap_err().contains("sé stessa"));
+        assert!(config.runs_into("paste", "paste"));
+        assert!(!config.runs_into("terminal", "terminal"));
     }
 
     #[test]
@@ -760,7 +1114,7 @@ mod tests {
         assert_eq!(unique_id("Esplora file", |_| false), "esplora-file");
         assert_eq!(unique_id("  Play/Pausa! ", |_| false), "play-pausa");
         assert_eq!(unique_id("Proprietà", |_| false), "proprietà");
-        assert_eq!(unique_id("???", |_| false), "azione");
+        assert_eq!(unique_id("???", |_| false), "action");
         assert_eq!(unique_id("Copia", |id| id == "copia" || id == "copia-2"), "copia-3");
     }
 }

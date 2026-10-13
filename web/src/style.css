@@ -136,6 +136,7 @@ a:focus-visible { outline: 2px solid #7FE6EC; outline-offset: 3px; }
   font-weight: 600;
 }
 .btn-ghost:hover { background-color: rgba(165, 206, 205, 0.10); }
+.btn-ghost svg { width: 18px; height: 18px; margin-right: 10px; }
 
 /* Selettore di lingua: la lingua attuale è evidenziata, l'altra è un link. */
 .lang {
@@ -189,6 +190,16 @@ a.lang-opt:hover { color: var(--heading); background-color: rgba(165, 206, 205, 
 .get { display: flex; flex-direction: column; gap: 14px; }
 .get-start { align-items: flex-start; }
 .get-center { align-items: center; margin-top: 8px; }
+
+/* L'installer, sotto il pulsante dello Store: separato da una linea, più discreto. */
+.get-alt {
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+  align-self: stretch;
+}
+.alt-label { font-size: 15px; color: var(--body); }
 
 .meta {
   font-family: var(--font-mono);
@@ -478,6 +489,40 @@ a.lang-opt:hover { color: var(--heading); background-color: rgba(165, 206, 205, 
   line-height: 1.6;
   color: var(--body);
   text-wrap: pretty;
+}
+
+/* ---------- Cosa sa fare ---------- */
+
+.features { border-top: 1px solid var(--line); }
+
+/* Le schede sono quelle di "Come funziona" (.step), con una pallina della ruota al posto del numero. */
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0E2A2C;
+  background: radial-gradient(circle at 68% 24%, #F6FCFB 0%, #D2E8E6 28%, #A5CECD 64%);
+  box-shadow: inset 0 -6px 14px rgba(8, 19, 20, 0.16), 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.feature-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feature code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--soft);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Download ---------- */

@@ -10,8 +10,8 @@ use std::cell::{Cell, RefCell};
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, KillTimer, SetTimer};
 
-use crate::actions::{self, Context};
-use crate::config::{Action, Config, Slot};
+use crate::actions::{self, Context, Job};
+use crate::config::{Config, Item, Slot};
 use crate::overlay::{self, Entrance, Hub, SliceView, Style};
 use crate::{icons, input, tr, tray, trf};
 
@@ -32,7 +32,7 @@ enum Mode {
 /// Cosa succede scegliendo uno spicchio della ruota visibile.
 #[derive(Clone)]
 enum Target {
-    Run { label: String, action: Action },
+    Run(Item),
     /// Apre la ruota con questo id.
     Submenu(String),
 }
@@ -163,7 +163,7 @@ fn choose(hwnd: HWND, index: usize) {
             STACK.with_borrow_mut(|stack| stack.push(id));
             refresh(hwnd, Entrance::Open);
         }
-        Target::Run { label, action } => execute(hwnd, label, action),
+        Target::Run(item) => execute(hwnd, &item, CONTEXT.take()),
     }
 }
 
@@ -201,7 +201,7 @@ fn show_top(entrance: Entrance) -> Result<(), String> {
                 Slot::Action(id) => {
                     let Some(item) = config.action(id) else { continue };
                     views.push(SliceView { icon: icons::glyph(&item.icon), label: item.label.clone(), submenu: false });
-                    targets.push(Target::Run { label: item.label.clone(), action: item.action.clone() });
+                    targets.push(Target::Run(item.clone()));
                 }
                 Slot::Wheel(id) => {
                     let Some(sub) = config.wheel(id) else { continue };
@@ -247,14 +247,38 @@ fn update_dwell(hwnd: HWND) {
     }
 }
 
-fn execute(hwnd: HWND, label: String, action: Action) {
+fn execute(hwnd: HWND, item: &Item, context: Context) {
     // Niente dissolvenza: l'azione non deve trovarsi la ruota davanti (per esempio uno screenshot).
     stop();
     overlay::hide();
+    let library = CONFIG.with_borrow(|config| config.as_ref().map(|c| c.actions.clone()).unwrap_or_default());
     // Un HWND contiene un puntatore e Rust non lo lascia passare tra thread:
     // ne passiamo il valore numerico e lo ricostruiamo dall'altra parte.
     let target = hwnd.0 as usize;
-    actions::run(action, CONTEXT.take(), move |error| {
-        tray::notify(HWND(target as *mut _), &trf!("{label}: azione non riuscita", "{label}: action failed"), &error);
+    actions::run(Job::new(item, &library, context), move |failure| {
+        tray::notify(HWND(target as *mut _), &failure.title, &failure.message);
     });
+}
+
+/// Esegue l'azione `id` della libreria senza passare dalla ruota: la sua scorciatoia o
+/// `wheelor.exe --run <id>`. Se la ruota è aperta, si chiude.
+pub fn run_action(hwnd: HWND, id: &str) {
+    if is_open() {
+        close();
+    }
+    let found = CONFIG.with_borrow(|config| {
+        let config = config.as_ref()?;
+        let item = config.action(id)?.clone();
+        let mut context = Context::capture();
+        context.profile = config.wheel_for_app(&context.app).name.clone();
+        Some((item, context))
+    });
+    match found {
+        Some((item, context)) => execute(hwnd, &item, context),
+        None => tray::notify(
+            hwnd,
+            tr!("Azione non trovata", "Action not found"),
+            &trf!("Nella libreria non c'è un'azione con id \"{id}\".", "There's no action with the id \"{id}\" in the library."),
+        ),
+    }
 }

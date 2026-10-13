@@ -14,8 +14,8 @@ msgid "Nessuna"
 msgstr "None"
 
 msgctxt "KeyField"
-msgid "In ascolto: premi la combinazione di tasti, Esc per annullare"
-msgstr "Listening: press the key combination, Esc to cancel"
+msgid "In ascolto: premi la combinazione di tasti e rilasciala, dopo 2 secondi è quella scelta. Esc per annullare"
+msgstr "Listening: press the key combination and let go, it's picked after 2 seconds. Esc to cancel"
 
 msgctxt "KeyField"
 msgid "Combinazione di tasti: premi Invio per cambiarla"
@@ -44,50 +44,6 @@ msgstr "No icons found."
 msgctxt "IconPicker"
 msgid "Passa sopra un'icona per vederne il nome."
 msgstr "Hover over an icon to see its name."
-
-msgctxt "WheelPreview"
-msgid "Ruota vuota"
-msgstr "Empty wheel"
-
-msgctxt "SlotItem"
-msgid "Sottomenu"
-msgstr "Submenu"
-
-msgctxt "SlotItem"
-msgid "Sposta prima"
-msgstr "Move up"
-
-msgctxt "SlotItem"
-msgid "Sposta dopo"
-msgstr "Move down"
-
-msgctxt "SlotItem"
-msgid "Apri la ruota"
-msgstr "Open the wheel"
-
-msgctxt "SlotItem"
-msgid "Modifica l'azione"
-msgstr "Edit the action"
-
-msgctxt "SlotItem"
-msgid "Togli dalla ruota"
-msgstr "Remove from the wheel"
-
-msgctxt "SlotList"
-msgid "Nessun elemento: aggiungi la prima azione."
-msgstr "No items: add the first action."
-
-msgctxt "SlotList"
-msgid "Aggiungi azione"
-msgstr "Add action"
-
-msgctxt "SlotList"
-msgid "Aggiungi sottomenu"
-msgstr "Add submenu"
-
-msgctxt "SlotList"
-msgid "La ruota è piena: togli un elemento per aggiungerne un altro."
-msgstr "The wheel is full: remove an item to add another one."
 
 msgctxt "Confirm"
 msgid "Annulla"
@@ -156,32 +112,20 @@ msgid "{} di {}"
 msgstr "{} of {}"
 
 msgctxt "SettingsWindow"
-msgid "In senso orario dall'alto; il numero è il tasto rapido. Clic su un elemento, qui o sulla ruota, per spostarlo, modificarlo o toglierlo."
-msgstr "Clockwise from the top; the number is the quick key. Click an item, here or on the wheel, to move, edit or remove it."
+msgid "Nome della ruota"
+msgstr "Wheel name"
 
 msgctxt "SettingsWindow"
-msgid "Nome e icona"
-msgstr "Name and icon"
+msgid "App collegate"
+msgstr "Linked apps"
 
 msgctxt "SettingsWindow"
-msgid "L'icona compare sulla pallina quando questa ruota è un sottomenu."
-msgstr "The icon appears on the ball when this wheel is a submenu."
+msgid "Quando usi una di queste app, la scorciatoia apre questa ruota."
+msgstr "When you're using one of these apps, the shortcut opens this wheel."
 
 msgctxt "SettingsWindow"
-msgid "Nome"
-msgstr "Name"
-
-msgctxt "SettingsWindow"
-msgid "Profilo"
-msgstr "Profile"
-
-msgctxt "SettingsWindow"
-msgid "Con una di queste app in primo piano, la scorciatoia apre questa ruota al posto della principale."
-msgstr "With one of these apps in the foreground, the shortcut opens this wheel instead of the main one."
-
-msgctxt "SettingsWindow"
-msgid "es. code.exe, notepad.exe (separate da virgole)"
-msgstr "e.g. code.exe, notepad.exe (comma-separated)"
+msgid "es. notepad.exe, chrome.exe"
+msgstr "e.g. notepad.exe, chrome.exe"
 
 msgctxt "SettingsWindow"
 msgid "Scegli tra le app aperte"
@@ -220,12 +164,8 @@ msgid "Elimina"
 msgstr "Delete"
 
 msgctxt "SettingsWindow"
-msgid "Etichetta"
-msgstr "Label"
-
-msgctxt "SettingsWindow"
-msgid "Nome mostrato sulla ruota"
-msgstr "Name shown on the wheel"
+msgid "Nome dell'azione"
+msgstr "Action name"
 
 msgctxt "SettingsWindow"
 msgid "Cosa fa"
@@ -236,28 +176,16 @@ msgid "Comando"
 msgstr "Command"
 
 msgctxt "SettingsWindow"
-msgid "Apri"
-msgstr "Open"
-
-msgctxt "SettingsWindow"
-msgid "Tasti"
-msgstr "Keys"
-
-msgctxt "SettingsWindow"
-msgid "Testo"
-msgstr "Text"
-
-msgctxt "SettingsWindow"
-msgid "Prompt dei comandi (cmd)"
-msgstr "Command Prompt (cmd)"
+msgid "Prompt dei comandi"
+msgstr "Command Prompt"
 
 msgctxt "SettingsWindow"
 msgid "Finestra"
 msgstr "Window"
 
 msgctxt "SettingsWindow"
-msgid "Nascosta (in background)"
-msgstr "Hidden (in the background)"
+msgid "Nascosta"
+msgstr "Hidden"
 
 msgctxt "SettingsWindow"
 msgid "Visibile"
@@ -272,44 +200,40 @@ msgid "Cartella di lavoro"
 msgstr "Working folder"
 
 msgctxt "SettingsWindow"
-msgid "Vuota = cartella utente. Accetta %VARIABILI% e ~"
-msgstr "Empty = user folder. Accepts %VARIABLES% and ~"
+msgid "Facoltativa"
+msgstr "Optional"
 
 msgctxt "SettingsWindow"
 msgid "Esegui come amministratore"
 msgstr "Run as administrator"
 
 msgctxt "SettingsWindow"
-msgid "Variabili d'ambiente: WHEELOR_APP e WHEELOR_TITLE (app e finestra in primo piano quando hai aperto la ruota), WHEELOR_PROFILE (ruota di partenza). In modalità nascosta, se il comando fallisce compare una notifica."
-msgstr "Environment variables: WHEELOR_APP and WHEELOR_TITLE (app and window in the foreground when you opened the wheel), WHEELOR_PROFILE (starting wheel). In hidden mode, a notification appears if the command fails."
+msgid "App, file, cartella o sito web"
+msgstr "App, file, folder or website"
 
 msgctxt "SettingsWindow"
-msgid "App, file, cartella o indirizzo web"
-msgstr "App, file, folder or web address"
-
-msgctxt "SettingsWindow"
-msgid "es. notepad.exe, C:\\Progetti, https://…"
-msgstr "e.g. notepad.exe, C:\\Projects, https://…"
+msgid "es. notepad.exe, C:\\Documenti, https://…"
+msgstr "e.g. notepad.exe, C:\\Documents, https://…"
 
 msgctxt "SettingsWindow"
 msgid "Sfoglia"
 msgstr "Browse"
 
 msgctxt "SettingsWindow"
-msgid "Argomenti (facoltativi)"
-msgstr "Arguments (optional)"
+msgid "Opzioni di avvio (facoltative)"
+msgstr "Launch options (optional)"
 
 msgctxt "SettingsWindow"
 msgid "Combinazione di tasti"
 msgstr "Key combination"
 
 msgctxt "SettingsWindow"
-msgid "Clic qui, poi premi i tasti da inviare"
-msgstr "Click here, then press the keys to send"
+msgid "Clic qui, poi premi i tasti"
+msgstr "Click here, then press the keys"
 
 msgctxt "SettingsWindow"
-msgid "Clic sul campo e premi la combinazione, anche con Win o Stamp. Per i tasti che forse non hai, o per Esc (che annulla), usa questi:"
-msgstr "Click the field and press the combination, even with Win or Print Screen. For keys you may not have, or for Esc (which cancels), use these:"
+msgid "Altri tasti"
+msgstr "Other keys"
 
 msgctxt "SettingsWindow"
 msgid "Play/Pausa"
@@ -344,20 +268,12 @@ msgid "Scorciatoia"
 msgstr "Shortcut"
 
 msgctxt "SettingsWindow"
-msgid "Clic sul campo e premi la combinazione che apre la ruota, es. Ctrl+Alt+W o Win+Shift+Spazio. Premila e rilasciala per scegliere con un clic o con Spazio, oppure tienila premuta, punta e rilascia."
-msgstr "Click the field and press the combination that opens the wheel, e.g. Ctrl+Alt+W or Win+Shift+Space. Press and release it to choose with a click or with Space, or hold it, point and release."
-
-msgctxt "SettingsWindow"
 msgid "Punta da tutto lo schermo"
 msgstr "Point from anywhere on the screen"
 
 msgctxt "SettingsWindow"
-msgid "Conta solo la direzione del mouse, anche oltre il bordo della ruota: un clic ovunque sceglie l'azione puntata."
-msgstr "Only the mouse direction counts, even beyond the edge of the wheel: a click anywhere picks the action you point at."
-
-msgctxt "SettingsWindow"
-msgid "Fuori dalla ruota non si punta nulla, e un clic fuori la chiude."
-msgstr "Outside the wheel nothing is pointed at, and a click outside closes it."
+msgid "Conta solo la direzione del mouse, anche fuori dalla ruota."
+msgstr "Only the direction of the mouse counts, even outside the wheel."
 
 msgctxt "SettingsWindow"
 msgid "Aspetto"
@@ -368,20 +284,8 @@ msgid "Colore"
 msgstr "Color"
 
 msgctxt "SettingsWindow"
-msgid "{}: per la ruota e per queste impostazioni."
-msgstr "{}: for the wheel and for these settings."
-
-msgctxt "SettingsWindow"
 msgid "Opacità"
 msgstr "Opacity"
-
-msgctxt "SettingsWindow"
-msgid "La ruota è piena: non si vede cosa c'è sotto."
-msgstr "The wheel is solid: what's underneath isn't visible."
-
-msgctxt "SettingsWindow"
-msgid "Attraverso la ruota si intravede cosa c'è sotto."
-msgstr "You can see through the wheel to what's underneath."
 
 msgctxt "SettingsWindow"
 msgid "Opacità della ruota"
@@ -390,10 +294,6 @@ msgstr "Wheel opacity"
 msgctxt "SettingsWindow"
 msgid "Dimensione"
 msgstr "Size"
-
-msgctxt "SettingsWindow"
-msgid "Quanto è grande la ruota sullo schermo."
-msgstr "How big the wheel is on the screen."
 
 msgctxt "SettingsWindow"
 msgid "Normale"
@@ -415,10 +315,6 @@ msgctxt "SettingsWindow"
 msgid "Lingua"
 msgstr "Language"
 
-msgctxt "SettingsWindow"
-msgid "Lingua di Wheelor. «Come Windows» segue la lingua del sistema: italiano se Windows è in italiano, altrimenti inglese."
-msgstr "Wheelor's language. “Like Windows” follows the system language: Italian if Windows is in Italian, English otherwise."
-
 #. I nomi delle lingue restano sempre nella loro lingua.
 msgctxt "SettingsWindow"
 msgid "Come Windows"
@@ -429,32 +325,24 @@ msgid "Avvia con Windows"
 msgstr "Start with Windows"
 
 msgctxt "SettingsWindow"
-msgid "Wheelor parte in background quando accedi. Si può cambiare anche da Impostazioni di Windows > App > Avvio."
-msgstr "Wheelor starts in the background when you sign in. You can also change this in Windows Settings > Apps > Startup."
-
-msgctxt "SettingsWindow"
-msgid "Wheelor parte in background quando accedi."
-msgstr "Wheelor starts in the background when you sign in."
+msgid "La ruota è pronta appena accendi il PC."
+msgstr "The wheel is ready as soon as you start your PC."
 
 msgctxt "SettingsWindow"
 msgid "Cerca aggiornamenti"
 msgstr "Check for updates"
 
 msgctxt "SettingsWindow"
-msgid "Controlla su wheelor.app se c'è una nuova versione e te lo dice con una notifica. Non invia nessun dato."
-msgstr "Checks wheelor.app for a new version and tells you with a notification. It sends no data."
+msgid "Ti avvisa quando esce una nuova versione."
+msgstr "Lets you know when a new version is out."
 
 msgctxt "SettingsWindow"
-msgid "File di configurazione"
-msgstr "Configuration file"
+msgid "File delle impostazioni"
+msgstr "Settings file"
 
 msgctxt "SettingsWindow"
 msgid "Apri cartella"
 msgstr "Open folder"
-
-msgctxt "SettingsWindow"
-msgid "Il file di configurazione si può modificare anche a mano: Wheelor lo ricarica alla successiva apertura della ruota."
-msgstr "You can also edit the configuration file by hand: Wheelor reloads it the next time the wheel opens."
 
 msgctxt "SettingsWindow"
 msgid "Azioni rapide su una ruota attorno al cursore."
@@ -469,8 +357,8 @@ msgid "Versione {}"
 msgstr "Version {}"
 
 msgctxt "SettingsWindow"
-msgid "Installata dal Microsoft Store: gli aggiornamenti arrivano da soli, come per le altre app dello Store."
-msgstr "Installed from the Microsoft Store: updates arrive on their own, like for other Store apps."
+msgid "Arrivano da soli dal Microsoft Store."
+msgstr "They come automatically from the Microsoft Store."
 
 msgctxt "SettingsWindow"
 msgid "È disponibile Wheelor {}"
@@ -493,8 +381,8 @@ msgid "Puoi anche scaricare l'ultima versione da wheelor.app e installarla sopra
 msgstr "You can also download the latest version from wheelor.app and install it over the current one: your wheels and actions stay."
 
 msgctxt "SettingsWindow"
-msgid "Le icone sono quelle del font di sistema di Windows (Segoe Fluent Icons); i loro nomi vengono dalla documentazione Microsoft, con licenza CC BY 4.0."
-msgstr "The icons come from the Windows system font (Segoe Fluent Icons); their names come from the Microsoft documentation, licensed under CC BY 4.0."
+msgid "Le icone sono quelle di Windows (Segoe Fluent Icons); i loro nomi vengono dalla documentazione Microsoft, con licenza CC BY 4.0."
+msgstr "The icons are the Windows ones (Segoe Fluent Icons); their names come from the Microsoft documentation, licensed under CC BY 4.0."
 
 msgctxt "SettingsWindow"
 msgid "Modifiche non salvate"
@@ -568,3 +456,376 @@ msgctxt "SettingsWindow"
 msgid "Esci senza salvare"
 msgstr "Exit without saving"
 
+msgctxt "TitleField"
+msgid "Taglia"
+msgstr "Cut"
+
+msgctxt "TitleField"
+msgid "Copia"
+msgstr "Copy"
+
+msgctxt "TitleField"
+msgid "Incolla"
+msgstr "Paste"
+
+msgctxt "TitleField"
+msgid "Seleziona tutto"
+msgstr "Select all"
+
+msgctxt "SettingsWindow"
+msgid "Esegui con"
+msgstr "Run with"
+
+msgctxt "SettingsWindow"
+msgid "Sviluppato da"
+msgstr "Developed by"
+
+msgctxt "SettingsWindow"
+msgid "Visita il sito"
+msgstr "Visit the website"
+
+msgctxt "SettingsWindow"
+msgid "Crediti"
+msgstr "Credits"
+
+msgctxt "PlaceholderMenu"
+msgid "Testo selezionato"
+msgstr "Selected text"
+
+msgctxt "PlaceholderMenu"
+msgid "Testo negli appunti"
+msgstr "Text in the clipboard"
+
+msgctxt "PlaceholderMenu"
+msgid "Chiedi un testo"
+msgstr "Ask for some text"
+
+msgctxt "PlaceholderMenu"
+msgid "{{ask:Cosa cerchi?}}"
+msgstr "{{ask:What are you looking for?}}"
+
+msgctxt "PlaceholderMenu"
+msgid "Data di oggi"
+msgstr "Today's date"
+
+msgctxt "PlaceholderMenu"
+msgid "Ora"
+msgstr "Time"
+
+msgctxt "PlaceholderMenu"
+msgid "Risultato del comando precedente"
+msgstr "Result of the previous command"
+
+msgctxt "PlaceholderMenu"
+msgid "App in primo piano"
+msgstr "App in the foreground"
+
+msgctxt "PlaceholderMenu"
+msgid "Titolo della finestra"
+msgstr "Window title"
+
+msgctxt "PlaceholderMenu"
+msgid "Inserisci un segnaposto"
+msgstr "Insert a placeholder"
+
+msgctxt "PlaceholderMenu"
+msgid "Segnaposto"
+msgstr "Placeholder"
+
+msgctxt "Ghost"
+msgid "Rilascia per togliere"
+msgstr "Release to remove"
+
+msgctxt "WheelPreview"
+msgid "Elementi della ruota"
+msgstr "Wheel items"
+
+msgctxt "WheelPreview"
+msgid "Togli"
+msgstr "Remove"
+
+msgctxt "SettingsWindow"
+msgid "Torna a «{}»"
+msgstr "Back to “{}”"
+
+msgctxt "SettingsWindow"
+msgid "{n} passo"
+msgid_plural "{n} passi"
+msgstr[0] "{n} step"
+msgstr[1] "{n} steps"
+
+msgctxt "SettingsWindow"
+msgid "Cambia tipo di passo"
+msgstr "Change the step type"
+
+msgctxt "SettingsWindow"
+msgid "Sposta prima"
+msgstr "Move up"
+
+msgctxt "SettingsWindow"
+msgid "Sposta dopo"
+msgstr "Move down"
+
+msgctxt "SettingsWindow"
+msgid "Duplica il passo"
+msgstr "Duplicate the step"
+
+msgctxt "SettingsWindow"
+msgid "Elimina il passo"
+msgstr "Delete the step"
+
+msgctxt "SettingsWindow"
+msgid "Aspetta che finisca prima di continuare"
+msgstr "Wait for it to finish before going on"
+
+msgctxt "SettingsWindow"
+msgid "Quanto aspettare"
+msgstr "How long to wait"
+
+msgctxt "SettingsWindow"
+msgid "Secondi"
+msgstr "Seconds"
+
+msgctxt "SettingsWindow"
+msgid "{} s"
+msgstr "{} s"
+
+msgctxt "SettingsWindow"
+msgid "App da aspettare"
+msgstr "App to wait for"
+
+msgctxt "SettingsWindow"
+msgid "es. notepad.exe"
+msgstr "e.g. notepad.exe"
+
+msgctxt "SettingsWindow"
+msgid "Scegli"
+msgstr "Choose"
+
+msgctxt "SettingsWindow"
+msgid "Titolo della finestra (facoltativo)"
+msgstr "Window title (optional)"
+
+msgctxt "SettingsWindow"
+msgid "Basta una parte del titolo"
+msgstr "Part of the title is enough"
+
+msgctxt "SettingsWindow"
+msgid "Aspetta al massimo"
+msgstr "Wait at most"
+
+msgctxt "SettingsWindow"
+msgid "Testo da mettere negli appunti"
+msgstr "Text to put in the clipboard"
+
+msgctxt "SettingsWindow"
+msgid "Azione da eseguire"
+msgstr "Action to run"
+
+msgctxt "SettingsWindow"
+msgid "Nessuna azione scelta"
+msgstr "No action chosen"
+
+msgctxt "SettingsWindow"
+msgid "Aggiungi passo"
+msgstr "Add step"
+
+msgctxt "SettingsWindow"
+msgid "Esegue l'azione anche senza aprire la ruota."
+msgstr "Runs the action without opening the wheel."
+
+msgctxt "SettingsWindow"
+msgid "Nessuna: clic per sceglierla"
+msgstr "None: click to choose one"
+
+msgctxt "SettingsWindow"
+msgid "Togli la scorciatoia"
+msgstr "Remove the shortcut"
+
+msgctxt "SettingsWindow"
+msgid "Aggiungi un passo"
+msgstr "Add a step"
+
+msgctxt "SettingsWindow"
+msgid "Nuova azione per «{}»"
+msgstr "New action for “{}”"
+
+msgctxt "SettingsWindow"
+msgid "Nuova azione"
+msgstr "New action"
+
+msgctxt "SettingsWindow"
+msgid "Parti da un passo o da un esempio: dopo puoi cambiare tutto e aggiungere altri passi."
+msgstr "Start from a step or from an example: you can change everything later and add more steps."
+
+msgctxt "SettingsWindow"
+msgid "UN PASSO"
+msgstr "ONE STEP"
+
+msgctxt "SettingsWindow"
+msgid "ESEMPI"
+msgstr "EXAMPLES"
+
+msgctxt "AskWindow"
+msgid "Annulla"
+msgstr "Cancel"
+
+msgctxt "Undo"
+msgid "Annulla"
+msgstr "Undo"
+
+msgctxt "WheelPreview"
+msgid "Aggiungi un elemento"
+msgstr "Add an item"
+
+msgctxt "WheelPreview"
+msgid "Aggiungi"
+msgstr "Add"
+
+msgctxt "PickRow"
+msgid "Già nella ruota"
+msgstr "Already in the wheel"
+
+msgctxt "WheelEditor"
+msgid "Apri il sottomenu"
+msgstr "Open the submenu"
+
+msgctxt "WheelEditor"
+msgid "Modifica l'azione"
+msgstr "Edit the action"
+
+msgctxt "WheelEditor"
+msgid "Sostituisci…"
+msgstr "Replace…"
+
+msgctxt "WheelEditor"
+msgid "Sposta prima"
+msgstr "Move back"
+
+msgctxt "WheelEditor"
+msgid "Sposta dopo"
+msgstr "Move forward"
+
+msgctxt "WheelEditor"
+msgid "Togli dalla ruota"
+msgstr "Remove from the wheel"
+
+msgctxt "WheelEditor"
+msgid "Aggiungi un'azione…"
+msgstr "Add an action…"
+
+msgctxt "WheelEditor"
+msgid "Aggiungi un sottomenu…"
+msgstr "Add a submenu…"
+
+msgctxt "WheelEditor"
+msgid "Nuova azione…"
+msgstr "New action…"
+
+msgctxt "WheelEditor"
+msgid "Nuovo sottomenu"
+msgstr "New submenu"
+
+msgctxt "WheelEditor"
+msgid "ELEMENTO {} DI {}"
+msgstr "ITEM {} OF {}"
+
+msgctxt "WheelEditor"
+msgid "Sostituisci"
+msgstr "Replace"
+
+msgctxt "Sposta"
+msgid "Prima"
+msgstr "Back"
+
+msgctxt "Sposta"
+msgid "Dopo"
+msgstr "Forward"
+
+msgctxt "WheelEditor"
+msgid "Togli"
+msgstr "Remove"
+
+msgctxt "WheelEditor"
+msgid "La ruota è vuota"
+msgstr "The wheel is empty"
+
+msgctxt "WheelEditor"
+msgid "La ruota è piena"
+msgstr "The wheel is full"
+
+msgctxt "WheelEditor"
+msgid "Scegli una pallina"
+msgstr "Choose a ball"
+
+msgctxt "WheelEditor"
+msgid "Aggiungi le azioni da avere a portata di mano, o altre ruote da aprire come sottomenu."
+msgstr "Add the actions you want at hand, or other wheels to open as submenus."
+
+msgctxt "WheelEditor"
+msgid "Ha {} elementi, il massimo. Per metterne un altro, scegli una pallina e sostituiscila."
+msgstr "It has {} items, the most it can hold. To put in another one, choose a ball and replace it."
+
+msgctxt "WheelEditor"
+msgid "Clic per vedere cosa fa, doppio clic per modificarla, tasto destro per tutti i comandi. Trascinala per spostarla, o fuori dal disco per toglierla."
+msgstr "Click to see what it does, double-click to edit it, right-click for every command. Drag it to move it, or out of the disc to remove it."
+
+msgctxt "WheelEditor"
+msgid "Aggiungi un'azione"
+msgstr "Add an action"
+
+msgctxt "WheelEditor"
+msgid "Sottomenu"
+msgstr "Submenu"
+
+msgctxt "TitleBar"
+msgid "Riduci a icona"
+msgstr "Minimize"
+
+msgctxt "TitleBar"
+msgid "Chiudi"
+msgstr "Close"
+
+msgctxt "SettingsWindow"
+msgid "Al posto di «{}»"
+msgstr "Instead of “{}”"
+
+msgctxt "SettingsWindow"
+msgid "Aggiungi a «{}»"
+msgstr "Add to “{}”"
+
+msgctxt "SettingsWindow"
+msgid "Un'azione della libreria."
+msgstr "An action from the library."
+
+msgctxt "SettingsWindow"
+msgid "Un'altra ruota, che si apre come sottomenu."
+msgstr "Another wheel, which opens as a submenu."
+
+msgctxt "SettingsWindow"
+msgid "Azioni"
+msgstr "Actions"
+
+msgctxt "SettingsWindow"
+msgid "Sottomenu"
+msgstr "Submenus"
+
+msgctxt "SettingsWindow"
+msgid "Cerca una ruota…"
+msgstr "Search for a wheel…"
+
+msgctxt "SettingsWindow"
+msgid "Nessuna ruota da usare come sottomenu: creane una nuova."
+msgstr "No wheel to use as a submenu: create a new one."
+
+msgctxt "SettingsWindow"
+msgid "La libreria è vuota: crea una nuova azione."
+msgstr "The library is empty: create a new action."
+
+msgctxt "SettingsWindow"
+msgid "Nuovo sottomenu"
+msgstr "New submenu"
+
+msgctxt "SettingsWindow"
+msgid "Nuova azione al posto di «{}»"
+msgstr "New action instead of “{}”"

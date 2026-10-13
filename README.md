@@ -13,6 +13,7 @@ wheelor/
 │   ├── src/  ui/  assets/  tools/
 │   ├── installer/        Inno Setup + build.ps1 → app/dist/
 │   └── DESIGN.md         architettura e decisioni dell'app
+├── CHANGELOG.md          novità di ogni versione (diventano le note della release)
 ├── web/                  sito (HTML + CSS statici, nessuna dipendenza), in inglese e in italiano
 │   ├── src/              modelli delle pagine (index, privacy), partials/ comuni, caratteri
 │   └── build.ps1         crea le pagine nelle due lingue e riempie i segnaposto → web/dist/
@@ -53,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File web\build.ps1            # usa app\dist
 python -m http.server 4321 --directory web\dist                   # http://localhost:4321
 ```
 
-In locale il pulsante scarica l'installer copiato in `web\dist`; online punta alla GitHub Release.
+Il pulsante principale porta alla scheda del Microsoft Store (l'ID dello Store è in `web\build.ps1`); l'installer è un collegamento secondario in fondo alla pagina: in locale scarica quello copiato in `web\dist`, online punta alla GitHub Release.
 
 Ogni pagina di `web\src` è un modello con i testi nelle due lingue, `{{en}}…{{/en}}{{it}}…{{/it}}`: `build.ps1` ne ricava la versione inglese nella radice e quella italiana in `it/` (la sintassi completa è in cima allo script). Il selettore EN/IT in alto porta alla stessa pagina nell'altra lingua e ricorda la scelta; alla prima visita, chi ha il browser in italiano finisce da solo sulla versione italiana.
 
@@ -101,10 +102,10 @@ DNS del dominio (Hostinger):
 
 A ogni versione:
 
-1. aggiorna `version` in `app/Cargo.toml` e fai commit;
+1. aggiorna `version` in `app/Cargo.toml` e aggiungi in cima a `CHANGELOG.md` la sezione `## <versione> — <data>` con le novità, in inglese e in italiano; fai commit;
 2. `git tag v0.2.0` e `git push origin main v0.2.0`.
 
-`release.yml` controlla che tag e versione coincidano, compila e testa su Windows, crea la release e fa ripartire `site.yml`. Dopo qualche minuto il sito mostra la nuova versione. Un tag con trattino (`v0.2.0-beta.1`) crea una pre-release: finché non esiste una versione stabile il sito mostra quella, con l'etichetta **Beta**; dopo, il sito resta sull'ultima stabile.
+`release.yml` controlla che tag e versione coincidano, compila e testa su Windows, crea la release (con la sezione del changelog come descrizione: è la pagina che apre «Novità» nell'app) e fa ripartire `site.yml`. Dopo qualche minuto il sito mostra la nuova versione. Un tag con trattino (`v0.2.0-beta.1`) crea una pre-release: finché non esiste una versione stabile il sito mostra quella, con l'etichetta **Beta**; dopo, il sito resta sull'ultima stabile.
 
 Le modifiche a `web/` sul ramo `main` ripubblicano il sito da sole, con i dati dell'ultima release.
 
@@ -132,7 +133,7 @@ Una volta sola:
 A ogni versione (dopo la release):
 
 1. scarica l'artefatto **Wheelor-msix** dall'esecuzione di `release.yml` (*Actions → Release → l'esecuzione → Artifacts*), oppure crealo in locale con `powershell -ExecutionPolicy Bypass -File app\installer\msix\build.ps1`;
-2. in Partner Center crea un nuovo invio, carica il `.msix` in *Pacchetti* e invia. La certificazione richiede da qualche ora a qualche giorno, poi lo Store aggiorna gli utenti da solo.
+2. in Partner Center crea un nuovo invio, carica il `.msix` in *Pacchetti* e, se l'aspetto è cambiato, aggiorna gli screenshot della scheda (in ogni lingua): `powershell -ExecutionPolicy Bypass -File app\installer\msix\screenshots.ps1` li crea in `app\dist\store\en` e `app\dist\store\it`, numerati nell'ordine in cui caricarli; poi invia. La certificazione richiede da qualche ora a qualche giorno, poi lo Store aggiorna gli utenti da solo.
 
 Differenze rispetto all'installer: niente aggiornamenti dall'app (li fa lo Store), avvio con Windows gestito anche da *Impostazioni → App → Avvio*, impostazioni in una cartella privata dell'app (le apre il pulsante *Apri cartella*), Windows 10 2004 o successivo. Meglio non installare entrambe le versioni: ne gira comunque una sola alla volta.
 

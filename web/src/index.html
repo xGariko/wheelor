@@ -30,11 +30,11 @@
       <h1 class="hero-title wl-rise d1">{{en}}One wheel.<br><span class="accent">Every action.</span>{{/en}}{{it}}Una ruota.<br><span class="accent">Ogni azione.</span>{{/it}}</h1>
       <p class="lead hero-lead wl-rise d2">{{en}}Wheelor opens a wheel of your go-to actions right around your cursor. Pick one and keep moving — no menus to dig through, no trips to the toolbar.{{/en}}{{it}}Wheelor apre una ruota con le tue azioni preferite proprio attorno al cursore. Scegline una e vai avanti: niente menu in cui frugare, niente viaggi fino alla barra degli strumenti.{{/it}}</p>
       <div class="get get-start wl-rise d3">
-        <a href="{{DOWNLOAD_URL}}" class="btn-primary wl-cta">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
-          <span>{{en}}Download for free{{/en}}{{it}}Scarica gratis{{/it}}</span>
+        <a href="{{STORE_URL}}" class="btn-primary wl-cta">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8.6v8.6H3zM12.4 3H21v8.6h-8.6zM3 12.4h8.6V21H3zM12.4 12.4H21V21h-8.6z"/></svg>
+          <span>{{en}}Download{{/en}}{{it}}Scarica{{/it}}</span>
         </a>
-        <span class="meta">Installer · v{{VERSION}} · {{SIZE}} · Windows 10/11</span>
+        <span class="meta">Microsoft Store · {{en}}Free · Windows 10/11 · automatic updates{{/en}}{{it}}Gratis · Windows 10/11 · aggiornamenti automatici{{/it}}</span>
       </div>
     </div>
 
@@ -134,18 +134,75 @@
   </div>
 </section>
 
+<section id="features" class="features">
+  <div class="how-inner">
+    <div class="section-head">
+      <span class="eyebrow">{{en}}WHAT IT CAN DO{{/en}}{{it}}COSA SA FARE{{/it}}</span>
+      <h2 class="section-title">{{en}}Small automations,<br><span class="accent">a flick away.</span>{{/en}}{{it}}Piccole automazioni,<br><span class="accent">a portata di gesto.</span>{{/it}}</h2>
+    </div>
+    <div class="steps">
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.6"/><circle cx="5" cy="12" r="1.6"/><circle cx="5" cy="18" r="1.6"/></svg></div>
+        <h3>{{en}}Actions in steps{{/en}}{{it}}Azioni a passi{{/it}}</h3>
+        <p>{{en}}Open an app, wait for its window, snap it to half the screen, press a few keys. One action runs the whole sequence.{{/en}}{{it}}Apri un'app, aspetta la sua finestra, mettila su metà schermo, premi qualche tasto. Un'azione esegue tutta la sequenza.{{/it}}</p>
+      </div>
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 4C6 4 5 5 5 7v2c0 1.5-.7 2.4-2 3 1.3.6 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5.7 2.4 2 3-1.3.6-2 1.5-2 3v2c0 2-1 3-3 3"/></svg></div>
+        <h3>{{en}}Works with your selection{{/en}}{{it}}Lavora sulla selezione{{/it}}</h3>
+        <p>{{en}}Placeholders like <code>{selection}</code>, <code>{clipboard}</code> and <code>{date}</code> let you search, translate or email the text you've selected in one move.{{/en}}{{it}}Con segnaposto come <code>{selection}</code>, <code>{clipboard}</code> e <code>{date}</code> cerchi, traduci o mandi per email il testo selezionato in un gesto.{{/it}}</p>
+      </div>
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M3 9h18M6.5 6.8h.01M9.5 6.8h.01"/></svg></div>
+        <h3>{{en}}A wheel for every app{{/en}}{{it}}Una ruota per ogni app{{/it}}</h3>
+        <p>{{en}}Link a wheel to your editor, your browser or your design tool, and the same shortcut opens the right one. Submenus hold even more.{{/en}}{{it}}Collega una ruota al tuo editor, al browser o al programma di grafica: la stessa scorciatoia apre quella giusta. E i sottomenu ne contengono ancora di più.{{/it}}</p>
+      </div>
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14h8"/></svg></div>
+        <h3>{{en}}Shortcuts and Stream Deck{{/en}}{{it}}Scorciatoie e Stream Deck{{/it}}</h3>
+        <p>{{en}}Give any action its own key combination, or run it from a Stream Deck, a desktop shortcut or a script with <code>wheelor.exe --run</code>.{{/en}}{{it}}Dai a ogni azione la sua combinazione di tasti, o eseguila da uno Stream Deck, da un collegamento o da uno script con <code>wheelor.exe --run</code>.{{/it}}</p>
+      </div>
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></div>
+        <h3>{{en}}Built right on the wheel{{/en}}{{it}}Si costruisce sulla ruota{{/it}}</h3>
+        <p>{{en}}Drag the balls to reorder them, right-click for every command, start from ready-made examples, and undo any change.{{/en}}{{it}}Trascina le palline per riordinarle, usa il tasto destro per ogni comando, parti da esempi pronti e annulla qualsiasi modifica.{{/it}}</p>
+      </div>
+
+      <div class="step feature">
+        <div class="feature-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <h3>{{en}}Stays on your PC{{/en}}{{it}}Resta sul tuo PC{{/it}}</h3>
+        <p>{{en}}No account, no ads, no tracking. Your wheels live in a file on your PC, and the app speaks English and Italian.{{/en}}{{it}}Niente account, pubblicità o tracciamento. Le tue ruote stanno in un file sul tuo PC, e l'app parla italiano e inglese.{{/it}}</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <section id="download" class="download">
   <div class="download-glow" aria-hidden="true"></div>
   <div class="download-inner">
     <img class="download-logo" src="{{ROOT}}logo.svg" alt="" width="104" height="104">
     <h2 class="cta-title">{{en}}Get Wheelor.<br><span class="accent">It's free.</span>{{/en}}{{it}}Prendi Wheelor.<br><span class="accent">È gratis.</span>{{/it}}</h2>
-    <p class="lead cta-lead">{{en}}Grab the installer, fill the wheel with your actions, and get back to work faster.{{/en}}{{it}}Scarica l'installer, riempi la ruota con le tue azioni e torna al lavoro più in fretta.{{/it}}</p>
+    <p class="lead cta-lead">{{en}}Get it from the Microsoft Store, fill the wheel with your actions, and get back to work faster. Updates arrive on their own.{{/en}}{{it}}Prendilo dal Microsoft Store, riempi la ruota con le tue azioni e torna al lavoro più in fretta. Gli aggiornamenti arrivano da soli.{{/it}}</p>
     <div class="get get-center">
-      <a href="{{DOWNLOAD_URL}}" class="btn-primary wl-cta">
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
-        <span>{{en}}Download for free{{/en}}{{it}}Scarica gratis{{/it}}</span>
+      <a href="{{STORE_URL}}" class="btn-primary wl-cta">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8.6v8.6H3zM12.4 3H21v8.6h-8.6zM3 12.4h8.6V21H3zM12.4 12.4H21V21h-8.6z"/></svg>
+        <span>{{en}}Download{{/en}}{{it}}Scarica{{/it}}</span>
       </a>
-      <span class="meta">Installer · v{{VERSION}} · {{SIZE}} · Windows 10/11</span>
+      <span class="meta">Microsoft Store · {{en}}Free · Windows 10/11{{/en}}{{it}}Gratis · Windows 10/11{{/it}}</span>
+    </div>
+    <!-- L'installer, per chi non usa lo Store: secondario, sotto. -->
+    <div class="get get-center get-alt">
+      <span class="alt-label">{{en}}Prefer not to use the Store?{{/en}}{{it}}Preferisci non usare lo Store?{{/it}}</span>
+      <a href="{{DOWNLOAD_URL}}" class="btn-ghost wl-cta">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
+        <span>{{en}}Download the installer{{/en}}{{it}}Scarica l'installer{{/it}}</span>
+      </a>
+      <span class="meta">Installer · v{{VERSION}} · {{SIZE}}</span>
     </div>
   </div>
 </section>

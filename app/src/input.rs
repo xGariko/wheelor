@@ -12,7 +12,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::Result;
 
-use crate::hotkey;
+use crate::{actions, hotkey};
 
 // Messaggi inviati alla finestra principale mentre la ruota è aperta.
 /// Il mouse si è mosso: wparam = x, lparam = y (pixel fisici).
@@ -45,6 +45,8 @@ thread_local! {
     static KEY_HELD: Cell<bool> = const { Cell::new(false) };
     // Lo stesso per lo Spazio: tenendolo premuto non deve scegliere anche nel sottomenu che apre.
     static SPACE_HELD: Cell<bool> = const { Cell::new(false) };
+    // Hook che guarda Esc mentre un'azione è in corso (vedi `watch_escape`).
+    static ESCAPE_HOOK: Cell<Option<HHOOK>> = const { Cell::new(None) };
 }
 
 /// Inizia a catturare l'input; i messaggi andranno a `target`.
@@ -75,9 +77,40 @@ pub fn stop() {
     }
 }
 
+/// Mentre un'azione è in corso (`on`), Esc la ferma: un hook di tastiera la avvisa. Il tasto non
+/// viene mangiato, arriva anche all'app; quelli inviati dalle azioni stesse non contano.
+pub fn watch_escape(on: bool) {
+    unsafe {
+        match (on, ESCAPE_HOOK.get()) {
+            (true, None) => {
+                let Ok(instance) = GetModuleHandleW(None) else { return };
+                if let Ok(hook) = SetWindowsHookExW(WH_KEYBOARD_LL, Some(escape_proc), Some(instance.into()), 0) {
+                    ESCAPE_HOOK.set(Some(hook));
+                }
+            }
+            (false, Some(hook)) => {
+                let _ = UnhookWindowsHookEx(hook);
+                ESCAPE_HOOK.set(None);
+            }
+            _ => {}
+        }
+    }
+}
+
+extern "system" fn escape_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if code == HC_ACTION as i32 {
+        let key = unsafe { &*(lparam.0 as *const KBDLLHOOKSTRUCT) };
+        let injected = key.flags.0 & LLKHF_INJECTED.0 != 0;
+        if key.vkCode == u32::from(VK_ESCAPE.0) && wparam.0 as u32 == WM_KEYDOWN && !injected {
+            actions::cancel();
+        }
+    }
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
+}
+
 /// Se Alt viene premuto e rilasciato senza altri tasti "visibili" in mezzo (la W l'ha presa
 /// la hotkey), molte app attivano la barra dei menu. Un tasto fittizio in mezzo lo evita.
-fn send_mask_key() {
+pub fn send_mask_key() {
     let key = |flags| INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
