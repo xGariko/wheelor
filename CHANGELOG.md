@@ -4,6 +4,14 @@ Le novità di ogni versione di Wheelor, in inglese e in italiano. La sezione di 
 la descrizione della sua release su GitHub (vedi `.github/workflows/release.yml`), che è anche la
 pagina aperta da «Novità» nell'app: va scritta prima di creare il tag.
 
+## 0.3.1-beta.1 — 2026-10-13
+
+**English**
+- Fixed: with both the Microsoft Store version and the installer version installed, opening Wheelor could show "Update" and run the installer. Now the Store version is in charge: the installer copy hands over to it as soon as it starts and no longer updates itself, and the Store version closes an older installer copy that's still running.
+
+**Italiano**
+- Corretto: con installate sia la versione del Microsoft Store sia quella dell'installer, aprendo Wheelor poteva comparire «Aggiorna», che avviava l'installer. Ora comanda la versione dello Store: la copia dell'installer le passa la mano appena parte e non si aggiorna più da sola, e la versione dello Store chiude una copia dell'installer più vecchia ancora attiva.
+
 ## 0.3.0-beta.1 — 2026-10-13
 
 **English**

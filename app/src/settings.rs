@@ -170,8 +170,8 @@ fn show() -> Result<(), slint::PlatformError> {
         Err(e) => (Config::default(), Some(e)),
     };
     i18n::set(config.language);
-    // La versione dello Store la aggiorna lo Store.
-    let check = config.check_updates && !package::is_store();
+    // La versione dello Store la aggiorna lo Store (vedi package::can_self_update).
+    let check = config.check_updates && package::can_self_update();
     let (ui, app) = build(config)?;
     // Dopo `build`: la scelta della lingua per Slint vale solo quando esiste già una finestra.
     i18n::apply_to_slint();
@@ -185,7 +185,7 @@ fn show() -> Result<(), slint::PlatformError> {
     if ask {
         ui.set_page(3);
     }
-    if check || (ask && !package::is_store()) {
+    if check || (ask && package::can_self_update()) {
         app.check_for_updates(ask);
     }
     fit_window(&ui);
@@ -247,7 +247,9 @@ fn build(config: Config) -> Result<(SettingsWindow, Rc<App>), slint::PlatformErr
     ui.global::<Fonts>().set_icons(icons::font_family().into());
     ui.set_max_slots(MAX_SLOTS as i32);
     ui.set_config_path(package::visible_path(config::path()).display().to_string().into());
-    ui.set_store(package::is_store());
+    // Niente aggiornamenti dall'app nella versione dello Store, e nemmeno nella copia dell'installer
+    // quando è installata anche quella dello Store.
+    ui.set_store(!package::can_self_update());
     ui.set_version(env!("CARGO_PKG_VERSION").into());
     steps::set_choices(&ui);
     {

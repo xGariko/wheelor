@@ -135,7 +135,7 @@ A ogni versione (dopo la release):
 1. scarica l'artefatto **Wheelor-msix** dall'esecuzione di `release.yml` (*Actions → Release → l'esecuzione → Artifacts*), oppure crealo in locale con `powershell -ExecutionPolicy Bypass -File app\installer\msix\build.ps1`;
 2. in Partner Center crea un nuovo invio, carica il `.msix` in *Pacchetti* e, se l'aspetto è cambiato, aggiorna gli screenshot della scheda (in ogni lingua): `powershell -ExecutionPolicy Bypass -File app\installer\msix\screenshots.ps1` li crea in `app\dist\store\en` e `app\dist\store\it`, numerati nell'ordine in cui caricarli; poi invia. La certificazione richiede da qualche ora a qualche giorno, poi lo Store aggiorna gli utenti da solo.
 
-Differenze rispetto all'installer: niente aggiornamenti dall'app (li fa lo Store), avvio con Windows gestito anche da *Impostazioni → App → Avvio*, impostazioni in una cartella privata dell'app (le apre il pulsante *Apri cartella*), Windows 10 2004 o successivo. Meglio non installare entrambe le versioni: ne gira comunque una sola alla volta.
+Differenze rispetto all'installer: niente aggiornamenti dall'app (li fa lo Store), avvio con Windows gestito anche da *Impostazioni → App → Avvio*, impostazioni in una cartella privata dell'app (le apre il pulsante *Apri cartella*), Windows 10 2004 o successivo. Se sono installate entrambe comanda quella dello Store: la copia dell'installer, quando parte, le passa la mano ed esce, e non si aggiorna più da sola; la copia dello Store chiude una copia dell'installer già attiva (dalla 0.3.0 in giù non sanno farsi da parte). Conviene comunque disinstallare l'altra da *Impostazioni → App → App installate*.
 
 ## Licenza
 

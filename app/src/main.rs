@@ -65,6 +65,8 @@ enum Greeting {
     Welcome,
     /// Riavviato dall'installer dopo un aggiornamento.
     Updated,
+    /// Versione dello Store che ha chiuso una copia dell'installer (vedi `main`).
+    TookOver,
 }
 
 thread_local! {
@@ -95,6 +97,20 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let has = |flag: &str| args.iter().any(|a| a == flag);
 
+    // Copia dell'installer, ma è installata anche la versione dello Store: comanda quella (vedi
+    // package). Le passa la mano con gli stessi argomenti, tranne --updated (l'aggiornamento era di
+    // questa copia). --quit e --ask restano qui: chiudono la copia attiva, rispondono su stdout.
+    if !has("--quit")
+        && !has("--ask")
+        && std::env::current_exe().is_ok_and(|exe| package::is_installer_copy(&exe))
+        && package::store_installed()
+    {
+        let forwarded: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--updated").collect();
+        if package::hand_over_to_store(&forwarded) {
+            return Ok(());
+        }
+    }
+
     if has("--settings") {
         settings::run();
         return Ok(());
@@ -114,16 +130,29 @@ fn main() -> Result<()> {
 
     // Istanza unica: se il mutex esiste già, Wheelor è già in esecuzione.
     let _mutex = unsafe { CreateMutexW(None, false, w!("Local\\Wheelor.SingleInstance"))? };
+    let mut took_over = false;
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-        // Chi lo riapre dal menu Start vuole le impostazioni; l'avvio automatico non vuole niente.
-        if !has("--background")
-            && let Ok(hwnd) = unsafe { FindWindowW(MAIN_CLASS, PCWSTR::null()) }
-        {
-            unsafe {
-                let _ = PostMessageW(Some(hwnd), WM_OPEN_SETTINGS, WPARAM(0), LPARAM(0));
+        let running = unsafe { FindWindowW(MAIN_CLASS, PCWSTR::null()) }.ok();
+        // Versione dello Store, ma è attiva una copia dell'installer (fino alla 0.3.0 non lascia il
+        // posto da sola, e si aggiornerebbe scaricando l'installer): la chiude e prende il suo posto.
+        // Il mutex resta: lo tiene in vita anche il nostro handle.
+        took_over = package::is_store()
+            && running.and_then(package::window_exe).is_some_and(|exe| package::is_installer_copy(&exe))
+            && {
+                quit_running();
+                unsafe { FindWindowW(MAIN_CLASS, PCWSTR::null()) }.is_err()
+            };
+        if !took_over {
+            // Chi lo riapre dal menu Start vuole le impostazioni; l'avvio automatico non vuole niente.
+            if !has("--background")
+                && let Some(hwnd) = running
+            {
+                unsafe {
+                    let _ = PostMessageW(Some(hwnd), WM_OPEN_SETTINGS, WPARAM(0), LPARAM(0));
+                }
             }
+            return Ok(());
         }
-        return Ok(());
     }
 
     // Di solito è già impostato dal manifest dell'exe (vedi build.rs): in quel caso la chiamata
@@ -132,10 +161,11 @@ fn main() -> Result<()> {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
 
-    GREETING.set(match (has("--background"), has("--updated")) {
-        (_, true) => Greeting::Updated,
-        (false, false) => Greeting::Welcome,
-        (true, false) => Greeting::None,
+    GREETING.set(match (took_over, has("--background"), has("--updated")) {
+        (true, _, _) => Greeting::TookOver,
+        (_, _, true) => Greeting::Updated,
+        (_, false, false) => Greeting::Welcome,
+        (_, true, false) => Greeting::None,
     });
     let instance: HINSTANCE = unsafe { GetModuleHandleW(None)? }.into();
     let hwnd = create_main_window(instance)?;
@@ -321,8 +351,8 @@ fn apply_config(hwnd: HWND) {
             if !problems.is_empty() {
                 tray::notify(hwnd, hotkey::problems_title(), &problems.join("\n"));
             }
-            // La versione dello Store la aggiorna lo Store.
-            schedule_update_checks(hwnd, config.check_updates && !package::is_store());
+            // La versione dello Store la aggiorna lo Store (vedi package::can_self_update).
+            schedule_update_checks(hwnd, config.check_updates && package::can_self_update());
             wheel::set_config(config);
         }
         Err(e) => tray::notify(hwnd, tr!("Errore nella configurazione", "Configuration error"), &e),
@@ -355,6 +385,13 @@ fn add_tray(hwnd: HWND) {
                     "Everything is as before: press {hotkey} to open the wheel."
                 );
                 tray::notify(hwnd, &title, &text);
+            }
+            Greeting::TookOver => {
+                let text = tr!(
+                    "Quello installato con l'installer è stato chiuso: puoi disinstallarlo da Impostazioni > App > App installate. Gli aggiornamenti arrivano dallo Store.",
+                    "The one installed with the installer was closed: you can uninstall it in Settings > Apps > Installed apps. Updates come from the Store."
+                );
+                tray::notify(hwnd, tr!("Ora è attivo Wheelor del Microsoft Store", "The Microsoft Store Wheelor is running now"), text);
             }
             Greeting::None => {}
         }
@@ -445,6 +482,10 @@ fn check_for_update(hwnd: HWND) {
     // Il prossimo controllo tra CHECK_EVERY_MS (stesso id: sostituisce il timer del primo).
     unsafe {
         SetTimer(Some(hwnd), TIMER_UPDATE, CHECK_EVERY_MS, None);
+    }
+    // Nel frattempo può essere arrivata la versione dello Store.
+    if !package::can_self_update() {
+        return;
     }
     let target = hwnd.0 as usize; // un HWND non passa tra thread: ne passiamo il valore
     std::thread::spawn(move || {

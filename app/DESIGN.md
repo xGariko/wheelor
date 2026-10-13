@@ -174,6 +174,10 @@ Gli altri passi: `wait` (`seconds = 1.5`), `system` (`do = "lock"`, `sleep`, `sc
   - i file nuovi in `%APPDATA%` finiscono in `%LOCALAPPDATA%\Packages\<famiglia>\LocalCache\Roaming`: Wheelor li vede al solito posto, Esplora file no (`package::visible_path` per "Apri cartella" e crash.log). Una configurazione già esistente dell'installer viene letta;
   - richiede Windows 10 2004 o successivo; capability `runFullTrust` (da giustificare all'invio);
   - lingue del pacchetto: inglese (predefinita) e italiano; la descrizione sta in `installer/msix/Strings/<lingua>/Resources.resw`.
+- **Installer e Store insieme** (chi aveva l'installer e scarica dallo Store, ora che il sito porta lì): comanda lo Store, perché le due copie condividono il mutex e la copia dell'installer, aggiornandosi, rimetteva in piedi se stessa (con la 0.3.0: aprendo Wheelor dal menu Start la copia dello Store passava la mano a quella dell'installer già attiva, che proponeva "Aggiorna" e avviava l'installer).
+  - La copia dell'installer (`package::is_installer_copy`: accanto all'exe c'è `unins000.exe`; le build di sviluppo no) con lo Store installato (`package::store_installed`, `GetPackagesByPackageFamily` con il family name fisso `STORE_FAMILY`) passa la mano appena parte: avvia l'app dello Store con gli stessi argomenti (tranne `--updated`) ed esce. Restano suoi `--quit` e `--ask`.
+  - Niente aggiornamenti dall'app né controllo (`package::can_self_update`) anche nella copia dell'installer quando c'è lo Store, se per qualche motivo non è riuscita a passare la mano.
+  - La copia dello Store che trova attiva una copia dell'installer (le versioni fino alla 0.3.0 non passano la mano: si riconosce dall'exe della finestra, `package::window_exe`) la chiude come `--quit` e prende il suo posto, con una notifica che suggerisce di disinstallare l'altra.
 - Da fare prima di pubblicare: licenza, nome dell'editore e copyright, avvisi di terze parti (crate Rust, Slint), firma del codice, repository pubblico, manifest winget.
 
 ## Insidie note
